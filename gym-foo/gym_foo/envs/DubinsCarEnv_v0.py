@@ -1,0 +1,253 @@
+import gym
+from gym import spaces
+from gym.utils import seeding
+import numpy as np
+import gazebo_env
+
+from gazebo_msgs.msg import ModelStates
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+
+from std_srvs.srv import Empty
+from gazebo_msgs.srv import GetModelState
+
+import rospy
+
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
+# need to be compatitable with model.sdf and world.sdf for custom setting
+GOAL_STATE = np.array([3.459, 3.626, 0., 0., 0.])
+START_STATE = np.array([-0.182, -3.339, 0., 0., 0.])
+
+
+class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
+    def __init__(self):
+        # Launch the simulation with the given launchfile name
+        # Notice： here we use 5D state. But in DubinsCarEngine we will use 3D state. We need seperate these two parts to make program more flexiable
+
+        gazebo_env.GazeboEnv.__init__(self, "DubinsCarCircuitGround_v0.launch")
+        self.vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=5)
+        self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
+        self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
+        self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
+        self.get_model_states = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+
+        self._seed()
+
+        self.laser_num = 8
+        self.state_dim = 5
+        self.action_dim = 2
+
+        # the state space has 5 dims: [xpos, ypos, theta, linear_vel(v), angular_vel(w)]
+        high_state = np.array([5., 5., np.pi, 2., 0.1])
+        # action space has 2 dims: [vel_acc, angvel_acc]
+        high_action = np.array([2., .5])
+        high_obsrv = np.array([5., 5., np.pi, 2., 0.1] + [5 * 2] * self.laser_num)
+        self.state_space = spaces.Box(low=-high_state, high=high_state)
+        self.action_space = spaces.Box(low=-high_action, high=high_action)
+        self.observation_space = spaces.Box(low=np.array([-5, -5, -np.pi, -2, -0.1] + [0]*self.laser_num), high=high_obsrv)
+
+        self.goal_state = GOAL_STATE
+        self.start_state = START_STATE
+
+        self.control_reward_coff = 0.01
+        self.collision_reward = -2*200*self.control_reward_coff*(10**2)
+        self.goal_reward = 1000
+
+        self.pre_obsrv = None
+        self.reward_type = None
+        self.brsEngine = None
+
+    def _discretize_laser(self, laser_data, new_ranges):
+
+        discretized_ranges = []
+        mod = int(len(laser_data.ranges)/new_ranges)
+        for i, item in enumerate(laser_data.ranges):
+            if (i+1) % mod == 0:
+                if laser_data.ranges[i] == float('Inf') or np.isinf(laser_data.ranges[i]):
+                    discretized_ranges.append(10)
+                elif np.isnan(laser_data.ranges[i]):
+                    discretized_ranges.append(0)
+                else:
+                    discretized_ranges.append(int(laser_data.ranges[i]))
+
+        return discretized_ranges
+
+    def _in_obst(self, laser_data):
+
+        min_range = 0.2
+        for idx, item in enumerate(laser_data.ranges):
+            if min_range > laser_data.ranges[idx] > 0:
+                return True
+        return False
+
+    def _in_goal(self, state):
+
+        assert len(state) == self.state_dim
+
+        x = state[0]
+        y = state[1]
+        theta = state[2]
+
+        if np.sqrt((x - self.goal_state[0]) ** 2 + (y - self.goal_state[1]) ** 2) <= 1.0:
+            return True
+        else:
+            return False
+
+    def get_obsrv(self, laser_data, dynamic_data):
+
+        discretized_laser_data = self._discretize_laser(laser_data, self.laser_num)
+
+        # here dynamic_data is specially for 'mobile_based' since I specified model name
+
+        # absolute x position
+        x = dynamic_data.pose.position.x
+        # absolute y position
+        y = dynamic_data.pose.position.y
+        # heading angle, which == yaw
+        ox = dynamic_data.pose.orientation.x
+        oy = dynamic_data.pose.orientation.y
+        oz = dynamic_data.pose.orientation.z
+        ow = dynamic_data.pose.orientation.w
+        # axis: sxyz
+        _, _, theta = euler_from_quaternion([ox, oy, oz, ow])
+
+        # velocity, just linear velocity along x-axis
+        v = dynamic_data.twist.linear.x
+        # angular velocity, just angular velocity along z-axis
+        w = dynamic_data.twist.angular.z
+
+        obsrv = [x, y, theta, v, w] + discretized_laser_data
+
+        return obsrv
+
+    def reset(self):
+        # Resets the state of the environment and returns an initial observation.
+        rospy.wait_for_service('/gazebo/reset_simulation')
+        try:
+            self.reset_proxy()
+        except rospy.ServiceException as e:
+            print("# Resets the state of the environment and returns an initial observation.")
+
+        # Unpause simulation to make observation
+        rospy.wait_for_service('/gazebo/unpause_physics')
+        try:
+            self.unpause()
+        except rospy.ServiceException as e:
+            print ("/gazebo/unpause_physics service call failed")
+
+        # read laser data
+        laser_data = None
+        dynamic_data = None
+        while laser_data is None and dynamic_data is None:
+            try:
+                laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
+                # dynamic_data = rospy.wait_for_message('/gazebo/model_states', ModelStates, timeout=5)
+                rospy.wait_for_service("/gazebo/get_model_state")
+                try:
+                    dynamic_data = self.get_model_states(model_name="mobile_base")
+                except rospy.ServiceException as e:
+                    print("/gazebo/unpause_physics service call failed")
+            except:
+                pass
+
+        rospy.wait_for_service('/gazebo/pause_physics')
+        try:
+            self.pause()
+        except rospy.ServiceException as e:
+            print ("/gazebo/pause_physics service call failed")
+
+        obsrv = self.get_obsrv(laser_data, dynamic_data)
+        self.pre_obsrv = obsrv
+
+        return np.asarray(obsrv)
+
+    def step(self, action):
+        rospy.wait_for_service('/gazebo/unpause_physics')
+        try:
+            self.unpause()
+        except rospy.ServiceException as e:
+            print("/gazebo/unpause_physics service call failed")
+
+        linear_acc = action[0]
+        angular_acc = action[1]
+
+        linear_vel = self.pre_obsrv[3] + linear_acc
+        angular_vel = self.pre_obsrv[4] + angular_acc
+
+        # clip angular velocity, from (-0.33 to + 0.33)
+        max_ang_speed = 0.3
+        angular_vel = (angular_vel-10)*max_ang_speed*0.1
+
+        cmd_vel = Twist()
+        cmd_vel.linear.x = linear_vel
+        cmd_vel.angular.z = angular_vel
+        self.vel_pub.publish(cmd_vel)
+
+
+        # linear_vel = 0.5
+        # angular_vel = action[0]
+        #
+        # # clip angular velocity, from (-1.0 to + 1.0)
+        # max_ang_vel = 0.3
+        # angular_vel = (angular_vel - 10) * max_ang_vel * 0.1
+        #
+        # cmd_vel = Twist()
+        # cmd_vel.linear.x = linear_vel
+        # cmd_vel.angular.z = angular_vel
+        # self.vel_pub.publish(cmd_vel)
+
+        laser_data = None
+        dynamic_data = None
+        while laser_data is None and dynamic_data is None:
+            try:
+                laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
+                # dynamic_data = rospy.wait_for_message('/gazebo/model_states', ModelStates)
+                rospy.wait_for_service("/gazebo/get_model_state")
+                try:
+                    dynamic_data = self.get_model_states(model_name="mobile_base")
+                except rospy.ServiceException as e:
+                    print("/gazebo/unpause_physics service call failed")
+            except:
+                pass
+
+        rospy.wait_for_service('/gazebo/pause_physics')
+        try:
+            # resp_pause = pause.call()
+            self.pause()
+        except rospy.ServiceException as e:
+            print("/gazebo/pause_physics service call failed")
+
+        obsrv = self.get_obsrv(laser_data, dynamic_data)
+        self.pre_obsrv = obsrv
+
+        assert self.reward_type is not None
+        reward = 0
+
+        if self.reward_type == 'hand_craft':
+            reward = 1
+        elif self.reward_type == 'ttr' and self.brsEngine is not None:
+            reward = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:3], (1, -1)))
+            reward = 30 / (reward + 0.001)
+            # print("reward:", reward)
+        done = False
+
+        # 1. when collision happens, done = True
+        if self._in_obst(laser_data):
+            reward += self.collision_reward
+            done = True
+
+        # 2. In the neighbor of goal state, done is True as well. Only considering velocity and pos
+        if self._in_goal(np.array(obsrv[:5])):
+            reward += self.goal_reward
+            done = True
+
+        # 3. Maybe episode length limit is another factor for resetting the robot, stay tuned.
+        # waiting to be implemented
+        # ---
+
+        return np.asarray(obsrv), reward, done, {}
+
+    def _seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
