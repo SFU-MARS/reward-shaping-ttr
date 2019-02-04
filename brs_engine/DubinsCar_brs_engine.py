@@ -37,7 +37,7 @@ class DubinsCar_brs_engine(object):
         self.eng.eval("addpath(genpath('/home/xlv/Desktop/toolboxls/Kernel'))", nargout=0)
         self.eng.eval("addpath(genpath('/home/xlv/Desktop/helperOC'));", nargout=0)
 
-    def reset_variables(self, tMax=12.0, interval=0.1, nPoints=41):
+    def reset_variables(self, tMax=15.0, interval=0.1, nPoints=41):
 
         self.eng.eval("global gXYT;", nargout=0)
 
@@ -112,12 +112,17 @@ class DubinsCar_brs_engine(object):
 
     def ttr_interpolation(self):
 
-        np_ttr = np.asarray(self.ttr_value)
+        # Only consider theta = 0
+        np_ttr = np.asarray(self.ttr_value)[:, :, 0]
         print('np_ttr shape is', np_ttr.shape, flush=True)
 
         # Here we interpolate based on discrete ttr function
-        # RegularGridInterpolator((x, y, z), data
-        self.ttr_check = RegularGridInterpolator((self.axis_coords[X_IDX], self.axis_coords[Y_IDX], self.axis_coords[THETA_IDX]), np_ttr)
+        # RegularGridInterpolator((x, y, z), data)
+        # self.ttr_check = RegularGridInterpolator((self.axis_coords[X_IDX], self.axis_coords[Y_IDX], self.axis_coords[THETA_IDX]), np_ttr)
+        self.ttr_check = RectBivariateSpline(x=self.axis_coords[X_IDX],
+                                             y=self.axis_coords[Y_IDX],
+                                             z=np_ttr,
+                                             kx=1, ky=1)
 
         # save the image of TTR function via matplotlib
         # fig = plt.figure()
@@ -141,16 +146,21 @@ class DubinsCar_brs_engine(object):
         # self.eng.workspace['x_max'] = self.gMax[X_IDX][0]
         # self.eng.workspace['y_min'] = self.gMin[Y_IDX][0]
         # self.eng.workspace['y_max'] = self.gMax[Y_IDX][0]
+        # self.eng.workspace['theta_min'] = self.gMin[THETA_IDX][0]
+        # self.eng.workspace['theta_max'] = self.gMax[THETA_IDX][0]
         # self.eng.workspace['nPoints'] = float(self.nPoints)
         # self.eng.eval("x = linspace(x_min, x_max, nPoints);", nargout=0)
         # self.eng.eval("y = linspace(y_min, y_max, nPoints);", nargout=0)
+        # self.eng.eval("theta = linspace(theta_min, theta_max, nPoints);", nargout=0)
+        # # self.eng.eval("scatter3(X(:),Y(:),THETA(:),5,Z(:)，'filled');", nargout=0)
+        #
         # self.eng.eval("[X,Y] = ndgrid(x, y);", nargout=0)
-        # for idx in range(self.nPoints-1):
+        # for idx in range(0, self.nPoints-1, 3):
         #     self.eng.workspace['Z'] = self.ttr_value[idx]
-        #     self.eng.eval("surf(X,Y,Z);", nargout=0)
+        #     self.eng.eval("surf(X,Y,Z,Z);", nargout=0)
         #     self.eng.eval("hold on;", nargout=0)
         # self.eng.workspace['tMax'] = float(self.tMax)
         # self.eng.workspace['interval'] = float(self.interval)
 
     def evaluate_ttr(self, states):
-        return self.ttr_check(states[:, :])
+        return self.ttr_check(states[:, X_IDX], states[:, Y_IDX], grid=False)

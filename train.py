@@ -25,6 +25,7 @@ MODEL_DIR = os.path.join(RUN_DIR, 'model')
 FIGURE_DIR = os.path.join(RUN_DIR, 'figure')
 RESULT_DIR = os.path.join(RUN_DIR, 'result')
 
+
 def train(env, init_policy, algorithm, params):
     # init policy
     pi = init_policy
@@ -77,9 +78,9 @@ def train(env, init_policy, algorithm, params):
                          xlabel='ppo iteration', figfile=os.path.join(FIGURE_DIR, 'ppo_reward'))
 
         # save data which is accumulated UNTIL iter i
-        with open(RESULT_DIR + 'ppo_length_'+'iter_'+str(i)+'.pickle','wb') as f1:
+        with open(RESULT_DIR + '/ppo_length_'+'iter_'+str(i)+'.pickle','wb') as f1:
             pickle.dump(ppo_length, f1)
-        with open(RESULT_DIR + 'ppo_reward_'+'iter_'+str(i)+'.pickle','wb') as f2:
+        with open(RESULT_DIR + '/ppo_reward_'+'iter_'+str(i)+'.pickle','wb') as f2:
             pickle.dump(ppo_reward, f2)
 
     # plot_performance(range(len(overall_perf)), overall_perf, ylabel=r'overall performance per algorithm step',

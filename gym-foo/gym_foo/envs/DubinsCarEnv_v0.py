@@ -227,7 +227,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         if self.reward_type == 'hand_craft':
             reward = 1
         elif self.reward_type == 'ttr' and self.brsEngine is not None:
-            reward = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:3], (1, -1)))
+            reward = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
             reward = 30 / (reward + 0.001)
             # print("reward:", reward)
         done = False
