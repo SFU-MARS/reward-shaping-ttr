@@ -50,6 +50,7 @@ def train(env, init_policy, algorithm, params):
     overall_perf = list()
     ppo_reward = list()
     ppo_length = list()
+    suc_percents = list()
 
     # index for num_iters loop
     i = 1
@@ -58,20 +59,18 @@ def train(env, init_policy, algorithm, params):
         # each learning step contains "num_ppo_iters" ppo-learning steps.
         # each ppo-learning steps == ppo-learning on single episode
         # each single episode is a single markov chain which contains many states, actions, rewards.
-        pi, ep_mean_length, ep_mean_reward = algorithm.ppo_learn(env=env, policy=pi, timesteps_per_actorbatch=timesteps_per_actorbatch,
+        pi, ep_mean_length, ep_mean_reward, suc_percent = algorithm.ppo_learn(env=env, policy=pi, timesteps_per_actorbatch=timesteps_per_actorbatch,
                                                                  clip_param=clip_param, entcoeff=entcoeff, optim_epochs=optim_epochs,
                                                                  optim_stepsize=optim_stepsize, optim_batchsize=optim_batchsize,
                                                                  gamma=gamma, lam=lam, max_iters=max_iters)
 
         ppo_length.extend(ep_mean_length)
         ppo_reward.extend(ep_mean_reward)
+        suc_percents.append(suc_percent)
 
         # perf_metric = evaluate()
         # overall_perf.append(perf_metric)
         # print('[Overall Iter %d]: perf_metric = %.2f' % (i, perf_metric))
-
-        # Incrementing our algorithm's loop counter
-        i += 1
 
         pi.save_model(MODEL_DIR, iteration=i)
         plot_performance(range(len(ppo_reward)), ppo_reward, ylabel=r'avg reward per ppo-learning step',
@@ -83,9 +82,17 @@ def train(env, init_policy, algorithm, params):
         with open(RESULT_DIR + '/ppo_reward_'+'iter_'+str(i)+'.pickle','wb') as f2:
             pickle.dump(ppo_reward, f2)
 
+        # Incrementing our algorithm's loop counter
+        i += 1
+
     # plot_performance(range(len(overall_perf)), overall_perf, ylabel=r'overall performance per algorithm step',
     #                  xlabel='algorithm iteration',
     #                  figfile=os.path.join(FIGURE_DIR, 'overall_perf'))
+
+    plot_performance(range(len(suc_percents)), suc_percents, ylabel=r'overall success percentage per algorithm step',
+                     xlabel='algorithm iteration', figfile=os.path.join(FIGURE_DIR, 'success_percent'))
+    with open(RESULT_DIR + '/success_percent' + '.pickle', 'wb') as fs:
+        pickle.dump(suc_percents, fs)
 
     return pi
 

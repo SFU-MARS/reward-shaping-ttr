@@ -101,7 +101,7 @@
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='cube_2'>
-          <pose frame=''>1.01745 1.99572 0.35 0 -0 0</pose>
+          <pose frame=''>-2.057526 1.99572 0.35 0 -0 0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
@@ -244,7 +244,7 @@
         <kinematic>0</kinematic>
       </link>
       <link name='cube_2'>
-        <pose frame=''>1.05753 1.92873 0.35 0 -0 0</pose>
+        <pose frame=''>-2.057526 1.92873 0.35 0 -0 0</pose>
         <collision name='collision'>
           <geometry>
             <box>

@@ -37,7 +37,7 @@ class DubinsCar_brs_engine(object):
         self.eng.eval("addpath(genpath('/home/xlv/Desktop/toolboxls/Kernel'))", nargout=0)
         self.eng.eval("addpath(genpath('/home/xlv/Desktop/helperOC'));", nargout=0)
 
-    def reset_variables(self, tMax=15.0, interval=0.1, nPoints=41):
+    def reset_variables(self, tMax=12.0, interval=0.1, nPoints=41):
 
         self.eng.eval("global gXYT;", nargout=0)
 
@@ -114,15 +114,17 @@ class DubinsCar_brs_engine(object):
 
         # Only consider theta = 0
         np_ttr = np.asarray(self.ttr_value)[:, :, 0]
+        # Consider 3D ttr
+        np_ttr = np.asarray(self.ttr_value)
         print('np_ttr shape is', np_ttr.shape, flush=True)
 
         # Here we interpolate based on discrete ttr function
         # RegularGridInterpolator((x, y, z), data)
-        # self.ttr_check = RegularGridInterpolator((self.axis_coords[X_IDX], self.axis_coords[Y_IDX], self.axis_coords[THETA_IDX]), np_ttr)
-        self.ttr_check = RectBivariateSpline(x=self.axis_coords[X_IDX],
-                                             y=self.axis_coords[Y_IDX],
-                                             z=np_ttr,
-                                             kx=1, ky=1)
+        self.ttr_check = RegularGridInterpolator((self.axis_coords[X_IDX], self.axis_coords[Y_IDX], self.axis_coords[THETA_IDX]), np_ttr)
+        # self.ttr_check = RectBivariateSpline(x=self.axis_coords[X_IDX],
+        #                                      y=self.axis_coords[Y_IDX],
+        #                                      z=np_ttr,
+        #                                      kx=1, ky=1)
 
         # save the image of TTR function via matplotlib
         # fig = plt.figure()
@@ -161,6 +163,9 @@ class DubinsCar_brs_engine(object):
         #     self.eng.eval("hold on;", nargout=0)
         # self.eng.workspace['tMax'] = float(self.tMax)
         # self.eng.workspace['interval'] = float(self.interval)
+        # self.eng.workspace['ttr'] = self.ttr_value
+        # self.eng.eval("save ttr.mat ttr", nargout=0)
 
     def evaluate_ttr(self, states):
-        return self.ttr_check(states[:, X_IDX], states[:, Y_IDX], grid=False)
+        return self.ttr_check((states[:, X_IDX], states[:, Y_IDX], states[:, THETA_IDX]))
+        # return self.ttr_check(states[:, X_IDX], states[:, Y_IDX], grid=False)
