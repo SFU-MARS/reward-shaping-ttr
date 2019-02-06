@@ -3,6 +3,7 @@ from ppo1_utils.pposgd_simple import *
 from collections import defaultdict
 from baselines.common import tf_util as U
 import numpy as np
+from collections import Counter
 
 
 def create_session(num_cpu=None):
@@ -96,6 +97,10 @@ def ppo_learn(env, policy,
     ep_mean_rews = list()
     ep_mean_lens = list()
 
+    # added by xlv
+    suc_counter = 0
+    ep_counter  = 0
+
     while True:
         if callback:
             callback(locals(), globals())
@@ -111,7 +116,7 @@ def ppo_learn(env, policy,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult =  max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
 
@@ -122,6 +127,16 @@ def ppo_learn(env, policy,
 
         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+
+        # added by xlv for computing success percentage
+        sucs = seg["suc"]
+        ep_lens = seg['ep_lens']
+
+        suc_counter += Counter(sucs)[True]
+        ep_counter  += len(ep_lens)
+
+
+
 
         # rewards = seg["start_rews"]
         # for start in rewards:
@@ -180,6 +195,8 @@ def ppo_learn(env, policy,
     # Taking avg of each start's rewards.
     # for start in rewards_map:
     #     rewards_map[start] = np.mean(rewards_map[start])
-
     # return pi, rewards_map, ep_mean_lens, ep_mean_rews
-    return pi, ep_mean_lens, ep_mean_rews
+
+    # added by xlv for success percentage
+    logger.record_tabular("success percentage", suc_counter * 1.0 / ep_counter)
+    return pi, ep_mean_lens, ep_mean_rews, suc_counter * 1.0 / ep_counter

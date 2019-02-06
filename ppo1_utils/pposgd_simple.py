@@ -33,6 +33,10 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     news = np.zeros(horizon, 'int32')
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
+    # define success percentage
+    suc = False
+    sucs = np.zeros(horizon, 'int32')
+
 
     while True:
         prevac = ac
@@ -41,6 +45,9 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if t > 0 and t % horizon == 0:
+            # added by xlv for reset
+            ob = env.reset()
+
             # add by xlv for deal with 'nan' data
             if len(ep_rets) == 0 and len(ep_lens) == 0:
                 ep_rets.append(cur_ep_ret)
@@ -48,7 +55,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
                 cur_ep_ret = 0
                 cur_ep_len = 0
 
-            yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
+            yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new": news, "suc": sucs,
                     "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
                     "ep_rets" : ep_rets, "ep_lens" : ep_lens}
                     # BI: Added this for our work.
@@ -58,16 +65,16 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             ep_rets = []
             ep_lens = []
 
-            # ob = env.reset()
-
         i = t % horizon
         obs[i] = ob
         vpreds[i] = vpred
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
+        # added by xlv
+        sucs[i] = suc
 
-        ob, rew, new, _ = env.step(ac)
+        ob, rew, new, suc, _ = env.step(ac)
         rews[i] = rew
 
         cur_ep_ret += rew

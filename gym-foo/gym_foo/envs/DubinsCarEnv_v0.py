@@ -75,7 +75,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
     def _in_obst(self, laser_data):
 
-        min_range = 0.2
+        min_range = 0.5
         for idx, item in enumerate(laser_data.ranges):
             if min_range > laser_data.ranges[idx] > 0:
                 return True
@@ -169,33 +169,44 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         except rospy.ServiceException as e:
             print("/gazebo/unpause_physics service call failed")
 
-        linear_acc = action[0]
-        angular_acc = action[1]
-
-        linear_vel = self.pre_obsrv[3] + linear_acc
-        angular_vel = self.pre_obsrv[4] + angular_acc
-
-        # clip angular velocity, from (-0.33 to + 0.33)
-        max_ang_speed = 0.3
-        angular_vel = (angular_vel-10)*max_ang_speed*0.1
-
-        cmd_vel = Twist()
-        cmd_vel.linear.x = linear_vel
-        cmd_vel.angular.z = angular_vel
-        self.vel_pub.publish(cmd_vel)
-
-
-        # linear_vel = 0.5
-        # angular_vel = action[0]
+        # linear_acc = action[0]
+        # angular_acc = action[1]
         #
-        # # clip angular velocity, from (-1.0 to + 1.0)
-        # max_ang_vel = 0.3
-        # angular_vel = (angular_vel - 10) * max_ang_vel * 0.1
+        # linear_vel = self.pre_obsrv[3] + linear_acc
+        # angular_vel = self.pre_obsrv[4] + angular_acc
+        #
+        # # clip angular velocity, from (-0.33 to + 0.33)
+        # max_ang_speed = 0.3
+        # angular_vel = (angular_vel-10)*max_ang_speed*0.1
         #
         # cmd_vel = Twist()
         # cmd_vel.linear.x = linear_vel
         # cmd_vel.angular.z = angular_vel
         # self.vel_pub.publish(cmd_vel)
+
+        linear_vel = action[0]
+        angular_vel = action[1]
+
+        # print("linear_vel:", linear_vel)
+        # print("angular_vel:", angular_vel)
+
+        # max_linear_vel = 0.5
+        # linear_vel = (linear_vel - 10) * max_linear_vel * 0.1
+
+        # clip angular velocity, from (-1.0 to + 1.0)
+        # max_ang_vel = 0.3
+        # angular_vel = (angular_vel - 10) * max_ang_vel * 0.1
+
+        # if angular_vel > self.action_space.high[1]:
+        #     angular_vel = self.action_space.high[1]
+        #
+        # if angular_vel < self.action_space.low[1]:
+        #     angular_vel = self.action_space.low[1]
+
+        cmd_vel = Twist()
+        cmd_vel.linear.x = linear_vel
+        cmd_vel.angular.z = angular_vel
+        self.vel_pub.publish(cmd_vel)
 
         laser_data = None
         dynamic_data = None
@@ -225,12 +236,19 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         reward = 0
 
         if self.reward_type == 'hand_craft':
-            reward = 1
+            # reward = 1
+            reward = -1
         elif self.reward_type == 'ttr' and self.brsEngine is not None:
-            reward = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
-            reward = 30 / (reward + 0.001)
+            # reward = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
+            # reward = 30 / (reward + 0.001)
             # print("reward:", reward)
+
+            ttr = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
+            reward = -ttr
+
+
         done = False
+        suc  = False
 
         # 1. when collision happens, done = True
         if self._in_obst(laser_data):
@@ -241,12 +259,13 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         if self._in_goal(np.array(obsrv[:5])):
             reward += self.goal_reward
             done = True
+            suc  = True
 
         # 3. Maybe episode length limit is another factor for resetting the robot, stay tuned.
         # waiting to be implemented
         # ---
-
-        return np.asarray(obsrv), reward, done, {}
+        print("reward:", reward)
+        return np.asarray(obsrv), reward, done, suc, {}
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
