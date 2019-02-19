@@ -19,3 +19,14 @@ register(
     # More arguments here
 )
 
+register(
+    id='DubinsCarEnv_dqn-v0',
+    entry_point='gym_foo.envs:DubinsCarEnv_v0_dqn',
+)
+
+register(
+    id='PlanarQuadEnv_dqn-v0',
+    entry_point='gym_foo.envs:PlanarQuadEnv_v0_dqn',
+)
+
+

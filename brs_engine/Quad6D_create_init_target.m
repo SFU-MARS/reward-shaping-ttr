@@ -5,10 +5,9 @@ function [targetX, targetY, targetW, targetVxPhi, targetVyPhi] = ...
 global gX gY gW gVxPhi gVyPhi;
 
 % New adding part by Xubo
-global gXY;
-global gVxVyPhi;
-
-global targetVxVyPhi;
+%global gXY;
+%global gVxVyPhi;
+%global targetVxVyPhi;
 
 %% Target and obstacles
 Xdim = 1;
@@ -18,8 +17,8 @@ VyPhidims = [4 5];
 Wdim = 6;
 
 % New adding part by Xubo
-XYdims = [1 3];
-VxVyPhidims = [2 4 5];
+%XYdims = [1 3];
+%VxVyPhidims = [2 4 5];
 
 alreadyMade = sum(size(gX)) > 0;
 if ~alreadyMade
@@ -31,8 +30,8 @@ if ~alreadyMade
     gVyPhi = createGrid(gMin(VyPhidims), gMax(VyPhidims), gN(VyPhidims), 2);
 
     % New adding part by Xubo
-    gXY = createGrid(gMin(XYdims), gMax(XYdims), gN(XYdims), 2);
-    gVxVyPhi = createGrid(gMin(VxVyPhidims), gMax(VxVyPhidims), gN(VxVyPhidims), 3);
+%    gXY = createGrid(gMin(XYdims), gMax(XYdims), gN(XYdims), 2);
+%    gVxVyPhi = createGrid(gMin(VxVyPhidims), gMax(VxVyPhidims), gN(VxVyPhidims), 3);
 
 
 end
