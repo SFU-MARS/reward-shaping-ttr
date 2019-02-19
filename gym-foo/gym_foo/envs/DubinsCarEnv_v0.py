@@ -4,12 +4,12 @@ from gym.utils import seeding
 import numpy as np
 import gazebo_env
 
-from gazebo_msgs.msg import ModelStates
-from geometry_msgs.msg import Twist
+from gazebo_msgs.msg import ModelState
+from geometry_msgs.msg import Twist, Pose, Pose2D
 from sensor_msgs.msg import LaserScan
 
 from std_srvs.srv import Empty
-from gazebo_msgs.srv import GetModelState
+from gazebo_msgs.srv import GetModelState, SetModelState
 
 import rospy
 
@@ -31,6 +31,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
         self.get_model_states = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+        self.set_model_states = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
 
         self._seed()
 
@@ -61,15 +62,27 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
     def _discretize_laser(self, laser_data, new_ranges):
 
         discretized_ranges = []
-        mod = int(len(laser_data.ranges)/new_ranges)
-        for i, item in enumerate(laser_data.ranges):
-            if (i+1) % mod == 0:
-                if laser_data.ranges[i] == float('Inf') or np.isinf(laser_data.ranges[i]):
-                    discretized_ranges.append(10)
-                elif np.isnan(laser_data.ranges[i]):
-                    discretized_ranges.append(0)
-                else:
-                    discretized_ranges.append(int(laser_data.ranges[i]))
+        # mod = int(len(laser_data.ranges)/new_ranges)
+        # for i, item in enumerate(laser_data.ranges):
+        #     if (i+1) % mod == 0:
+        #         if laser_data.ranges[i] == float('Inf') or np.isinf(laser_data.ranges[i]):
+        #             discretized_ranges.append(10)
+        #         elif np.isnan(laser_data.ranges[i]):
+        #             discretized_ranges.append(0)
+        #         else:
+        #             discretized_ranges.append(int(laser_data.ranges[i]))
+
+        full_ranges = float(len(laser_data.ranges))
+        print("laser ranges num: %d" % full_ranges)
+
+        for i in range(new_ranges):
+            new_i = int(i * full_ranges // new_ranges + full_ranges // (2 * new_ranges))
+            if laser_data.ranges[new_i] == float('Inf') or np.isinf(laser_data.ranges[new_i]):
+                discretized_ranges.append(10)
+            elif np.isnan(laser_data.ranges[new_i]):
+                discretized_ranges.append(0)
+            else:
+                discretized_ranges.append(int(laser_data.ranges[new_i]))
 
         return discretized_ranges
 
@@ -126,6 +139,21 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         rospy.wait_for_service('/gazebo/reset_simulation')
         try:
             self.reset_proxy()
+            pose = Pose()
+            pose.position.x = np.random.uniform(low=START_STATE[0]-0.5, high=START_STATE[0]+0.5)
+            pose.position.y = np.random.uniform(low=START_STATE[1]-0.5, high=START_STATE[1]+0.5)
+            pose.position.z = self.get_model_states(model_name="mobile_base").pose.position.z
+            theta = np.random.uniform(low=START_STATE[2]-np.pi, high=START_STATE[2]+np.pi)
+            ox, oy, oz, ow = quaternion_from_euler(0.0, 0.0, theta)
+            pose.orientation.x = ox
+            pose.orientation.y = oy
+            pose.orientation.z = oz
+            pose.orientation.w = ow
+
+            reset_state = ModelState()
+            reset_state.model_name = "mobile_base"
+            reset_state.pose = pose
+            self.set_model_states(reset_state)
         except rospy.ServiceException as e:
             print("# Resets the state of the environment and returns an initial observation.")
 

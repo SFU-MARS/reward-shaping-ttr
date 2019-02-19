@@ -9,6 +9,7 @@ import time
 from std_srvs.srv import Empty
 import random
 from rosgraph_msgs.msg import Clock
+import time
 
 class GazeboEnv(gym.Env):
     """Superclass for all Gazebo environments.
@@ -16,13 +17,13 @@ class GazeboEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, launchfile):
-        self.last_clock_msg = Clock()
+        # self.last_clock_msg = Clock()
 
         random_number = random.randint(10000, 15000)
-        # self.port = "11311"#str(random_number) #os.environ["ROS_PORT_SIM"]
-        # self.port_gazebo = "11345"#str(random_number+1) #os.environ["ROS_PORT_SIM"]
-        self.port = str(random_number) #os.environ["ROS_PORT_SIM"]
-        self.port_gazebo = str(random_number+1) #os.environ["ROS_PORT_SIM"]
+        self.port = "11311"#str(random_number) #os.environ["ROS_PORT_SIM"]
+        self.port_gazebo = "11345"#str(random_number+1) #os.environ["ROS_PORT_SIM"]
+        # self.port = str(random_number) #os.environ["ROS_PORT_SIM"]
+        # self.port_gazebo = str(random_number+1) #os.environ["ROS_PORT_SIM"]
 
         os.environ["ROS_MASTER_URI"] = "http://localhost:"+self.port
         os.environ["GAZEBO_MASTER_URI"] = "http://localhost:"+self.port_gazebo
@@ -50,13 +51,15 @@ class GazeboEnv(gym.Env):
         if not os.path.exists(fullpath):
             raise IOError("File "+fullpath+" does not exist")
 
-        self._roslaunch = subprocess.Popen([sys.executable, os.path.join(ros_path, b"roslaunch"), "-p", self.port, fullpath])
+        # self._roslaunch = subprocess.Popen([sys.executable, os.path.join(ros_path, b"roslaunch"), "-p", self.port, fullpath])
         print ("Gazebo launched!")
 
+        # time.sleep(10)
         self.gzclient_pid = 0
 
         # Launch the simulation with the given launchfile name
         rospy.init_node('gym', anonymous=True)
+
 
         ################################################################################################################
         # r = rospy.Rate(1)

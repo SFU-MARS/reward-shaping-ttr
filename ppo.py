@@ -116,7 +116,9 @@ def ppo_learn(env, policy,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
+            # cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
+            cur_lrmult = 1.0
+            cur_lrmult = max(cur_lrmult * np.power(0.95, float(iters_so_far) / max_iters), 0.7)
         else:
             raise NotImplementedError
 
@@ -134,9 +136,6 @@ def ppo_learn(env, policy,
 
         suc_counter += Counter(sucs)[True]
         ep_counter  += len(ep_lens)
-
-
-
 
         # rewards = seg["start_rews"]
         # for start in rewards:

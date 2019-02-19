@@ -1,6 +1,7 @@
 function [ttrX, ttrY, ttrW, ttrVxPhi, ttrVyPhi] = ...
   Quad6D_approx_TTR(gMin, gMax, gN, valueX, valueY, valueW, valueVxPhi, valueVyPhi, tMax, interval)
 
+    global gX gY gW gVxPhi gVyPhi;
 
     Xdim = 1;
     Ydim = 3;

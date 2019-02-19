@@ -3,6 +3,7 @@ import pickle
 import argparse
 import matplotlib.pyplot as plt
 
+# This script is for showing the saved ttr distribution graph. Because sometimes matplotlib can't show it online.
 if __name__ == "__main__":
 	
 	parser = argparse.ArgumentParser()

@@ -1,6 +1,6 @@
 function [dataX, dataY, dataW, dataVxPhi, dataVyPhi] = ...
   Quad6D_approx_RS(gMin, gMax, gN, T1Min, T1Max, T2Min, T2Max, wRange, ...
-  vxRange, vyRange, targetX, targetY, targetW, targetVxPhi, targetVyPhi, tMax)
+  vxRange, vyRange, targetX, targetY, targetW, targetVxPhi, targetVyPhi, tMax, interval)
 %
 % Computes the approximate backward reachable set for the 6D quadrotor
 % model by decomposing the system.
@@ -100,7 +100,7 @@ if nargin < 11
 end
 
  % Time horizon and intermediate results
-tau = 0:0.05:tMax;
+tau = 0:interval:tMax;
 
 %% Dynamical subsystems
 q_X = Quad6D_XY([], vxRange);
