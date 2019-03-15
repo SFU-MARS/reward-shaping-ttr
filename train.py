@@ -22,16 +22,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--gym_env", help="which gym environment to use.", type=str, default='DubinsCarEnv-v0')
 parser.add_argument("--reward_type", help="which type of reward to use.", type=str, default='hand_craft')
 parser.add_argument("--algo", help="which type of algorithm to use.", type=str, default='ppo')
+parser.add_argument("--set_hover_end", type=str, default="false")
 args = parser.parse_args()
 
 RUN_DIR = MODEL_DIR = FIGURE_DIR = RESULT_DIR = None
 if args.algo == "ppo":
-    RUN_DIR = os.path.join(os.getcwd(), 'runs', args.gym_env + '_' + args.reward_type + '_' + strftime('%d-%b-%Y_%H-%M-%S'))
+    RUN_DIR = os.path.join(os.getcwd(), 'runs_reborn', args.gym_env + '_' + args.reward_type + '_' + strftime('%d-%b-%Y_%H-%M-%S'))
     MODEL_DIR = os.path.join(RUN_DIR, 'model')
     FIGURE_DIR = os.path.join(RUN_DIR, 'figure')
     RESULT_DIR = os.path.join(RUN_DIR, 'result')
 elif args.algo == "dqn":
-    RUN_DIR = os.path.join(os.getcwd(), 'runs', args.gym_env + '_' + args.reward_type + '_' + strftime('%d-%b-%Y_%H-%M-%S'))
+    RUN_DIR = os.path.join(os.getcwd(), 'runs_reborn', args.gym_env + '_' + args.reward_type + '_' + strftime('%d-%b-%Y_%H-%M-%S'))
     MODEL_DIR = os.path.join(RUN_DIR, 'model')
 
 
@@ -75,10 +76,12 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
         ppo_reward = list()
         ppo_length = list()
         suc_percents = list()
+        wall_clock_time = list()
 
         # index for num_iters loop
         i = 1
         while i <= num_iters:
+            wall_clock_time.append(time())
             print('overall training iteration %d' %i)
             # each learning step contains "num_ppo_iters" ppo-learning steps.
             # each ppo-learning steps == ppo-learning on single episode
@@ -110,6 +113,8 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
                 pickle.dump(ppo_reward, f2)
             with open(RESULT_DIR + '/success_percent_' + 'iter_' + str(i) + '.pickle', 'wb') as fs:
                 pickle.dump(suc_percents, fs)
+            with open(RESULT_DIR + '/wall_clock_time_' + 'iter_' + str(i) + '.pickle', 'wb') as ft:
+                pickle.dump(wall_clock_time, ft)
 
             # Incrementing our algorithm's loop counter
             i += 1
@@ -143,13 +148,14 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
             steps = 1000
             updateTargetNetwork = 10000
             explorationRate = 1
-            minibatch_size = 64
+            minibatch_size = 128
             learnStart = 64
             learningRate = 0.00025
             discountFactor = 0.99
             memorySize = 1000000
-            network_inputs = env.state_dim + env.laser_num
-            network_outputs = 21
+            network_inputs = env.state_dim + env.num_lasers
+            # network_outputs = 21
+            network_outputs = 25
             network_structure = [300,300]
             current_epoch = 0
 
@@ -201,7 +207,7 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
 
                 action = deepQ.selectAction(qValues, explorationRate)
 
-                newObservation, reward, done, info = env.step(action)
+                newObservation, reward, done, suc, info = env.step(action)
 
                 cumulated_reward += reward
                 if highest_reward < cumulated_reward:
@@ -274,6 +280,9 @@ if __name__ == "__main__":
     # Initialize environment and reward type
     env = gym.make(args.gym_env)
     env.reward_type = args.reward_type
+    env.set_hover_end = args.set_hover_end
+    print("env:", args.gym_env)
+    print("env.set_hover_end:", env.set_hover_end)
 
     # Initialize brs engine. You also have to call reset_variables() after instance initialization
     if args.reward_type == 'ttr':
@@ -294,6 +303,8 @@ if __name__ == "__main__":
 
     elif args.reward_type == 'hand_craft':
         pass
+    elif args.reward_type == 'distance':
+        pass
     else:
         raise ValueError("wrong type of reward")
 
@@ -309,8 +320,8 @@ if __name__ == "__main__":
         trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json)
         trained_policy.save_model(MODEL_DIR)
 
-        # LOAD_DIR = "runs/PlanarQuadEnv-v0_ttr_15-Feb-2019_18-24-00/model"
-        # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, load=True, loadpath=LOAD_DIR, loaditer=6)
+        # LOAD_DIR = "/home/xlv/Desktop/IROS2019/runs_paper/PlanarQuadEnv-v0_hand_craft_25-Feb-2019_03-22-52/model"
+        # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, load=True, loadpath=LOAD_DIR, loaditer=10)
 
     elif args.algo == "dqn":
         # Make necessary directories

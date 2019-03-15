@@ -14,9 +14,15 @@ end
 uOpt = cell(obj.nu, 1);
 
 det = cell(obj.nu, 1);
-det{1} = - deriv{1} .* sin(x{2}) / obj.m;
-det{2} = - deriv{1} .* sin(x{2}) / obj.m;
+%det{1} = - deriv{1} .* sin(x{2}) / obj.m;
+%det{2} = - deriv{1} .* sin(x{2}) / obj.m;
+%det{3} = deriv{2};
+
+det{1} =  deriv{1} .* sin(x{2}) / obj.m;
+det{2} =  deriv{1} .* sin(x{2}) / obj.m;
 det{3} = deriv{2};
+
+
 
 uMin = [obj.T1Min; obj.T2Min; obj.wRange(1)];
 uMax = [obj.T1Max; obj.T2Max; obj.wRange(2)];

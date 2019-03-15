@@ -3,13 +3,14 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 import gazebo_env
-
-from gazebo_msgs.msg import ModelStates
-from geometry_msgs.msg import Twist
+from utils.utils import *
 from sensor_msgs.msg import LaserScan
 
+from gazebo_msgs.msg import ModelState
+from geometry_msgs.msg import Twist, Pose
 from std_srvs.srv import Empty
-from gazebo_msgs.srv import GetModelState
+
+from gazebo_msgs.srv import GetModelState, SetModelState
 
 import rospy
 
@@ -31,10 +32,11 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
         self.get_model_states = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+        self.set_model_states = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
 
         self._seed()
 
-        self.laser_num = 100
+        self.num_lasers = 100
         self.state_dim = 5
         self.action_dim = 2
 
@@ -42,10 +44,10 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
         high_state = np.array([5., 5., np.pi, 2., 0.1])
         # action space has 2 dims: [vel, ang_vel]
         high_action = np.array([2., .5])
-        high_obsrv = np.array([5., 5., np.pi, 2., 0.1] + [5 * 2] * self.laser_num)
+        high_obsrv = np.array([5., 5., np.pi, 2., 0.1] + [5 * 2] * self.num_lasers)
         self.state_space = spaces.Box(low=-high_state, high=high_state)
         self.action_space = spaces.Box(low=-high_action, high=high_action)
-        self.observation_space = spaces.Box(low=np.array([-5, -5, -np.pi, -2, -0.1] + [0]*self.laser_num), high=high_obsrv)
+        self.observation_space = spaces.Box(low=np.array([-5, -5, -np.pi, -2, -0.1] + [0]*self.num_lasers), high=high_obsrv)
 
         self.goal_state = GOAL_STATE
         self.start_state = START_STATE
@@ -72,7 +74,7 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
         #             discretized_ranges.append(int(laser_data.ranges[i]))
 
         full_ranges = float(len(laser_data.ranges))
-        print("laser ranges num: %d" % full_ranges)
+        # print("laser ranges num: %d" % full_ranges)
 
         for i in range(new_ranges):
             new_i = int(i * full_ranges // new_ranges + full_ranges // (2 * new_ranges))
@@ -108,7 +110,7 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
 
     def get_obsrv(self, laser_data, dynamic_data):
 
-        discretized_laser_data = self._discretize_laser(laser_data, self.laser_num)
+        discretized_laser_data = self._discretize_laser(laser_data, self.num_lasers)
 
         # here dynamic_data is specially for 'mobile_based' since I specified model name
 
@@ -138,6 +140,21 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
         rospy.wait_for_service('/gazebo/reset_simulation')
         try:
             self.reset_proxy()
+            # pose = Pose()
+            # pose.position.x = np.random.uniform(low=START_STATE[0] - 0.5, high=START_STATE[0] + 0.5)
+            # pose.position.y = np.random.uniform(low=START_STATE[1] - 0.5, high=START_STATE[1] + 0.5)
+            # pose.position.z = self.get_model_states(model_name="mobile_base").pose.position.z
+            # theta = np.random.uniform(low=START_STATE[2], high=START_STATE[2] + np.pi)
+            # ox, oy, oz, ow = quaternion_from_euler(0.0, 0.0, theta)
+            # pose.orientation.x = ox
+            # pose.orientation.y = oy
+            # pose.orientation.z = oz
+            # pose.orientation.w = ow
+            #
+            # reset_state = ModelState()
+            # reset_state.model_name = "mobile_base"
+            # reset_state.pose = pose
+            # self.set_model_states(reset_state)
         except rospy.ServiceException as e:
             print("# Resets the state of the environment and returns an initial observation.")
 
@@ -182,8 +199,11 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
             print("/gazebo/unpause_physics service call failed")
 
         max_ang_speed = 0.3
-        angular_vel = (action - 10) * max_ang_speed * 0.1  # from (-0.33 to + 0.33)
+        max_linear_speed = 0.5
 
+        # angular_vel = -max_ang_speed + (action // 5) * 0.15
+        # linear_vel = -max_linear_speed + (action % 5) * 0.25
+        angular_vel = (action - 12) * max_ang_speed * 0.1
         linear_vel = 0.2
 
         cmd_vel = Twist()
@@ -220,7 +240,7 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
 
         if self.reward_type == 'hand_craft':
             # reward = 1
-            reward = -1
+            reward = 0
         elif self.reward_type == 'ttr' and self.brsEngine is not None:
             # reward = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
             # reward = 30 / (reward + 0.001)
@@ -228,9 +248,11 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
 
             ttr = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
             reward = -ttr
-
+        elif self.reward_type == 'distance':
+            reward = -(Euclid_dis((obsrv[0], obsrv[1]), (GOAL_STATE[0], GOAL_STATE[1])))
 
         done = False
+        suc = False
 
         # 1. when collision happens, done = True
         if self._in_obst(laser_data):
@@ -241,13 +263,14 @@ class DubinsCarEnv_v0_dqn(gazebo_env.GazeboEnv):
         if self._in_goal(np.array(obsrv[:5])):
             reward += self.goal_reward
             done = True
-
+            suc = True
 
         # 3. Maybe episode length limit is another factor for resetting the robot, stay tuned.
         # waiting to be implemented
         # ---
-        print("reward:", reward)
-        return np.asarray(obsrv), reward, done, {}
+        # print("reward:", reward)
+
+        return np.asarray(obsrv), reward, done, suc, {}
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)

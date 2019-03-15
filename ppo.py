@@ -22,6 +22,63 @@ def initialize():
     U.initialize()
 
 
+def ppo_eval(env, policy, timesteps_per_actorbatch, max_iters=0, stochastic=False):
+    pi = policy
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=stochastic)
+
+    episodes_so_far = 0
+    timesteps_so_far = 0
+    iters_so_far = 0
+    tstart = time.time()
+    lenbuffer = deque(maxlen=100)  # rolling buffer for episode lengths
+    rewbuffer = deque(maxlen=100)  # rolling buffer for episode rewards
+
+    ep_mean_rews = list()
+    ep_mean_lens = list()
+
+    # added by xlv
+    suc_counter = 0
+    ep_counter = 0
+
+    while True:
+        if max_iters and iters_so_far >= max_iters:
+            break
+        logger.log("********** Iteration %i ************" % iters_so_far)
+
+        seg = seg_gen.__next__()
+
+        # added by xlv for computing success percentage
+        sucs = seg["suc"]
+        ep_lens = seg['ep_lens']
+
+        suc_counter += Counter(sucs)[True]
+        ep_counter += len(ep_lens)
+
+        lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+        # print("ep_rets:", seg["ep_rets"])
+        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+        lens, rews = map(flatten_lists, zip(*listoflrpairs))
+        lenbuffer.extend(lens)
+        rewbuffer.extend(rews)
+        # print("reward buffer:", rewbuffer)
+        ep_mean_lens.append(np.mean(lenbuffer))
+        ep_mean_rews.append(np.mean(rewbuffer))
+
+        logger.record_tabular("EpLenMean", np.mean(lenbuffer))
+        logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+        logger.record_tabular("EpThisIter", len(lens))
+        episodes_so_far += len(lens)
+        timesteps_so_far += sum(lens)
+        iters_so_far += 1
+
+        logger.record_tabular("EpisodesSoFar", episodes_so_far)
+        logger.record_tabular("TimestepsSoFar", timesteps_so_far)
+        logger.record_tabular("TimeElapsed", time.time() - tstart)
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            logger.dump_tabular()
+    logger.record_tabular("success percentage", suc_counter * 1.0 / ep_counter)
+    return pi, ep_mean_lens, ep_mean_rews, suc_counter * 1.0 / ep_counter
+
 def ppo_learn(env, policy,
         timesteps_per_actorbatch,                       # timesteps per actor per update
         clip_param, entcoeff,                           # clipping parameter epsilon, entropy coeff

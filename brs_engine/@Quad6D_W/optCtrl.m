@@ -14,8 +14,10 @@ end
 uOpt = cell(obj.nu, 1);
 
 det = cell(obj.nu, 1);
-det{1} = -deriv{1};
-det{2} = deriv{1};
+%det{1} = -deriv{1};
+%det{2} = deriv{1};
+det{1} = deriv{1};
+det{2} = -deriv{1};
 
 uMin = [obj.T1Min; obj.T2Min];
 uMax = [obj.T1Max; obj.T2Max];

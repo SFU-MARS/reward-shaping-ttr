@@ -24,7 +24,8 @@ function dx = dynamics_cell_helper(obj, x, u, dim)
 
 switch dim
   case 1
-    dx = -obj.rotDrag*x{1}/obj.I - obj.l*u{1}/obj.I + obj.l*u{2}/obj.I;
+%    dx = -obj.rotDrag*x{1}/obj.I - obj.l*u{1}/obj.I + obj.l*u{2}/obj.I;
+    dx = -obj.rotDrag*x{1}/obj.I + obj.l*u{1}/obj.I - obj.l*u{2}/obj.I;
 
   otherwise
     error('Only dimension 1 is defined for dynamics of Quad6D_W!')
