@@ -71,9 +71,20 @@ class DubinsCar_brs_engine(object):
         self.tMax = float(tMax)
         self.interval = float(interval)
 
-        # These functions' calling order should be correct
-        self.get_value_function()
-        self.get_ttr_function()
+        # # These functions' calling order should be correct
+        # self.get_value_function()
+        # self.get_ttr_function()
+        # self.ttr_interpolation()
+
+        # These functions' order should be correct
+        cur_path = os.getcwd() + '/brs_engine'
+        if os.path.exists(cur_path + '/ttrValue.mat') :
+            self.eng.eval("load ttrValue.mat ttrValue", nargout=0)
+            self.ttrValue = self.eng.workspace['ttrValue']
+        else:
+            self.get_value_function()
+            self.get_ttr_function()
+
         self.ttr_interpolation()
 
         # print("tMax:%f\n" % tMax)
@@ -101,7 +112,7 @@ class DubinsCar_brs_engine(object):
                                          nargout=1)
 
     def get_ttr_function(self):
-        self.ttr_value = \
+        self.ttrValue = \
             self.eng.DubinsCar_approx_TTR(self.gMin,
                                           self.gMax,
                                           self.gN,
@@ -110,12 +121,15 @@ class DubinsCar_brs_engine(object):
                                           self.interval,
                                           nargout=1)
 
+        self.eng.workspace['ttrValue'] = self.ttrValue
+        self.eng.eval("save ttrValue.mat ttrValue", nargout=0)
+
     def ttr_interpolation(self):
 
         # Only consider theta = 0
         # np_ttr = np.asarray(self.ttr_value)[:, :, 0]
         # Consider 3D ttr
-        np_ttr = np.asarray(self.ttr_value)
+        np_ttr = np.asarray(self.ttrValue)
         print('np_ttr shape is', np_ttr.shape, flush=True)
 
         # Here we interpolate based on discrete ttr function

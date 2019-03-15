@@ -14,13 +14,15 @@
   </include>
 
   <param name="robot_description" command="$(find xacro)/xacro.py /home/xlv/Desktop/quad_tmp/quadrotor.urdf.xacro"/>
-  <node name="spawn_quadrotor" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -x -2.18232 -y -3.33973 -z 3 -model quadrotor"
+  <!--<node name="spawn_quadrotor" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -x -2.18232 -y -3.33973 -z 3 -model quadrotor"-->
+  <!--output="screen">-->
+  <!--</node>-->
+
+  <!--FOR TEST NEW WORLD. CHANGE BACK IF NECESSARY-->
+  <node name="spawn_quadrotor" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -x 3.18232 -y -3.33973 -z 3 -model quadrotor"
   output="screen">
   </node>
 
-  <!--<node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">-->
-    <!--<param name="publish_frequency" type="double" value="30.0" />-->
-  <!--</node>-->
 
 
 

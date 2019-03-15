@@ -20,7 +20,7 @@ W_IDX = 5
 T1_IDX = 0
 T2_IDX = 1
 
-GOAL_STATE = np.array([4., 0., 4., 0., 0., 0.])
+GOAL_STATE = np.array([4., 0., 4., 0., 0.75, 0.])
 # START_STATE = np.array([-3.182, 0., 3., 0., 0., 0.])
 
 
@@ -42,7 +42,7 @@ class Quadrotor_brs_engine:
         self.goal_radius = matlab.double([[1.0],[0.5],[1.0],[0.5],[np.pi/3],[0.25]])
 
         self.gMin = matlab.double([[-5.], [-2.], [-5.], [-2.], [-np.pi], [-np.pi/2]])
-        self.gMax = matlab.double([[5.],[2,],[5.],[2,],[np.pi], [np.pi/2]])
+        self.gMax = matlab.double([[5.], [2.], [5.], [2.], [np.pi], [np.pi/2]])
         self.nPoints = nPoints
         self.gN = matlab.double((self.nPoints * np.ones((self.state_dim, 1))).tolist())
         self.axis_coords = [np.linspace(self.gMin[i][0], self.gMax[i][0], nPoints) for i in range(self.state_dim)]

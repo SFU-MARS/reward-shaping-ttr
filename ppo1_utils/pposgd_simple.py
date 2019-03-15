@@ -45,9 +45,9 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if t > 0 and t % horizon == 0:
-            # added by xlv for reset
-            # ob = env.reset()
 
+            # added by xlv for reset
+            ob = env.reset()
             # add by xlv for deal with 'nan' data
             if len(ep_rets) == 0 and len(ep_lens) == 0:
                 ep_rets.append(cur_ep_ret)
@@ -75,6 +75,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         sucs[i] = suc
 
         ob, rew, new, suc, _ = env.step(ac)
+        # print("rew:", rew)
         rews[i] = rew
 
         cur_ep_ret += rew

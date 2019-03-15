@@ -3,6 +3,7 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 import gazebo_env
+from utils.utils import *
 
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Twist, Pose, Pose2D
@@ -39,9 +40,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         self.state_dim = 5
         self.action_dim = 2
 
-        # the state space has 5 dims: [xpos, ypos, theta, linear_vel(v), angular_vel(w)]
         high_state = np.array([5., 5., np.pi, 2., 0.1])
-        # action space has 2 dims: [vel_acc, angvel_acc]
         high_action = np.array([2., .5])
         high_obsrv = np.array([5., 5., np.pi, 2., 0.1] + [5 * 2] * self.laser_num)
         self.state_space = spaces.Box(low=-high_state, high=high_state)
@@ -73,7 +72,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         #             discretized_ranges.append(int(laser_data.ranges[i]))
 
         full_ranges = float(len(laser_data.ranges))
-        print("laser ranges num: %d" % full_ranges)
+        # print("laser ranges num: %d" % full_ranges)
 
         for i in range(new_ranges):
             new_i = int(i * full_ranges // new_ranges + full_ranges // (2 * new_ranges))
@@ -88,7 +87,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
     def _in_obst(self, laser_data):
 
-        min_range = 0.5
+        min_range = 0.4
         for idx, item in enumerate(laser_data.ranges):
             if min_range > laser_data.ranges[idx] > 0:
                 return True
@@ -143,7 +142,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
             pose.position.x = np.random.uniform(low=START_STATE[0]-0.5, high=START_STATE[0]+0.5)
             pose.position.y = np.random.uniform(low=START_STATE[1]-0.5, high=START_STATE[1]+0.5)
             pose.position.z = self.get_model_states(model_name="mobile_base").pose.position.z
-            theta = np.random.uniform(low=START_STATE[2]-np.pi, high=START_STATE[2]+np.pi)
+            theta = np.random.uniform(low=START_STATE[2], high=START_STATE[2]+np.pi)
             ox, oy, oz, ow = quaternion_from_euler(0.0, 0.0, theta)
             pose.orientation.x = ox
             pose.orientation.y = oy
@@ -197,6 +196,19 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         except rospy.ServiceException as e:
             print("/gazebo/unpause_physics service call failed")
 
+        # linear_acc = action[0] + 1.0
+        # angular_acc = action[1]
+        #
+        # if sum(np.isnan(action)) > 0:
+        #     raise ValueError("Passed in nan to step! Action: " + str(action))
+        #
+        # pre_phi = self.pre_obsrv[2]
+        #
+        # cmd_vel = Twist()
+        # cmd_vel.linear.x = self.pre_obsrv[3] + linear_acc * np.cos(pre_phi)
+        # cmd_vel.angular.z = self.pre_obsrv[4] + angular_acc
+        # self.vel_pub.publish(cmd_vel)
+
         # linear_acc = action[0]
         # angular_acc = action[1]
         #
@@ -211,9 +223,6 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         # cmd_vel.linear.x = linear_vel
         # cmd_vel.angular.z = angular_vel
         # self.vel_pub.publish(cmd_vel)
-
-        linear_vel = action[0]
-        angular_vel = action[1]
 
         # print("linear_vel:", linear_vel)
         # print("angular_vel:", angular_vel)
@@ -230,6 +239,9 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         #
         # if angular_vel < self.action_space.low[1]:
         #     angular_vel = self.action_space.low[1]
+
+        linear_vel = action[0]
+        angular_vel = action[1]
 
         cmd_vel = Twist()
         cmd_vel.linear.x = linear_vel
@@ -265,7 +277,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
         if self.reward_type == 'hand_craft':
             # reward = 1
-            reward = -1
+            reward = 0
         elif self.reward_type == 'ttr' and self.brsEngine is not None:
             # reward = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
             # reward = 30 / (reward + 0.001)
@@ -273,7 +285,8 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
             ttr = self.brsEngine.evaluate_ttr(np.reshape(obsrv[:5], (1, -1)))
             reward = -ttr
-
+        elif self.reward_type == 'distance':
+            reward = -(Euclid_dis((obsrv[0], obsrv[1]), (GOAL_STATE[0], GOAL_STATE[1])))
 
         done = False
         suc  = False
@@ -292,7 +305,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         # 3. Maybe episode length limit is another factor for resetting the robot, stay tuned.
         # waiting to be implemented
         # ---
-        print("reward:", reward)
+        # print("reward:", reward)
         return np.asarray(obsrv), reward, done, suc, {}
 
     def _seed(self, seed=None):
