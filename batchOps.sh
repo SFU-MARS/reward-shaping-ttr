@@ -11,7 +11,7 @@
 #/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
 #/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
 #
-/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=false
+/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
 #/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
 
 

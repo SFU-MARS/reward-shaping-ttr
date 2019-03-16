@@ -469,6 +469,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         self.set_hover_end = None
         self.brsEngine = None
 
+        self.goal_level_high = False
 
     def _discretize_laser(self, laser_data, new_ranges):
 
@@ -537,14 +538,19 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
             else:
                 return False
         elif self.set_hover_end == 'true':
-            if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance \
-                    and (abs(phi - self.goal_state[4]) < 0.40):
+            # if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance \
+            #         and (abs(phi - self.goal_state[4]) < 0.40):
+            #     return True
+            # else:
+            #     return False
+            if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance:
+                if abs(phi - self.goal_state[4]) < 0.40:
+                    self.goal_level_high = True
+                else:
+                    self.goal_level_high = False
                 return True
             else:
                 return False
-            # if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance:
-            #
-            #     return True
         else:
             raise ValueError("invalid param for set_hover_end!")
 
@@ -731,12 +737,18 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
 
         # 2. In the neighbor of goal state, done is True as well. Only considering velocity and pos
         if self._in_goal(np.array(obsrv[:6])):
-            reward += self.goal_reward
+            if self.goal_level_high:
+                reward += self.goal_reward
+            else:
+                reward += self.goal_reward / 2.
+            print("high level goal? ", self.goal_level_high)
+            self.goal_level_high = False
             done = True
             suc = True
             print("in goal reward:", reward)
-            if abs(obsrv[4] - self.goal_state[4]) < 0.40:
-                print("good tilting!")
+
+            # if abs(obsrv[4] - self.goal_state[4]) < 0.40:
+            #     print("good tilting!")
 
         if obsrv[4] > 1.2 or obsrv[4] < -1.2:
             reward += self.collision_reward * 2
