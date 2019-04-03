@@ -37,7 +37,6 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     suc = False
     sucs = np.zeros(horizon, 'int32')
 
-
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
