@@ -28,9 +28,9 @@ class Quadrotor_brs_engine:
     # Starts and sets up the MATLAB engine that runs in the background.
     def __init__(self):
         self.eng = matlab.engine.start_matlab()
-        self.eng.cd("/home/xlv/Desktop/IROS2019/brs_engine", nargout=0)
-        self.eng.eval("addpath(genpath('/home/xlv/Desktop/toolboxls/Kernel'))", nargout=0)
-        self.eng.eval("addpath(genpath('/home/xlv/Desktop/helperOC'));", nargout=0)
+        self.eng.cd("../IROS2019/brs_engine", nargout=0)
+        self.eng.eval("addpath(genpath('../../toolboxls/Kernel'))", nargout=0)
+        self.eng.eval("addpath(genpath('../../helperOC'));", nargout=0)
 
     def reset_variables(self, tMax=15., interval=0.1, nPoints=41):
 
