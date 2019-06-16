@@ -25,37 +25,30 @@
   </node>
 
 
-
-
-
-
-
-
-
-
-
   <!-- this part is for quadrotor launching -->
   <!--<include file="$(find hector_quadrotor_gazebo)/launch/spawn_quadrotor_with_laser.launch" />-->
 
-<!--<param name="/controller/attitude/roll/p" value="0.0" />-->
-<!--<param name="/controller/attitude/roll/i" value="0.0" />-->
-<!--<param name="/controller/attitude/roll/d" value="0.0" />-->
-<!--* /controller/velocity/x/i: 1.0-->
-<!--* /controller/velocity/x/i_clamp: 5.0-->
-<!--* /controller/velocity/x/p: 2.0-->
-<!--* /controller/velocity/x/publish_state: True-->
-<!--* /controller/velocity/y/antiwindup: True-->
-<!--* /controller/velocity/y/d: 0.0-->
-<!--* /controller/velocity/y/i: 1.0-->
-<!--* /controller/velocity/y/i_clamp: 5.0-->
-<!--* /controller/velocity/y/p: 2.0-->
-<!--* /controller/velocity/y/publish_state: True-->
-<!--* /controller/velocity/z/antiwindup: True-->
-<!--* /controller/velocity/z/d: 0.0-->
-<!--* /controller/velocity/z/i: 1.0-->
-<!--* /controller/velocity/z/i_clamp: 5.0-->
-<!--* /controller/velocity/z/max: 5.0-->
-<!--* /controller/velocity/z/p: 5.0-->
+
+	<!-- IGNORE: this part is from hector_quadrotor package and proved infeasible -->
+	<!--<param name="/controller/attitude/roll/p" value="0.0" />-->
+	<!--<param name="/controller/attitude/roll/i" value="0.0" />-->
+	<!--<param name="/controller/attitude/roll/d" value="0.0" />-->
+	<!--* /controller/velocity/x/i: 1.0-->
+	<!--* /controller/velocity/x/i_clamp: 5.0-->
+	<!--* /controller/velocity/x/p: 2.0-->
+	<!--* /controller/velocity/x/publish_state: True-->
+	<!--* /controller/velocity/y/antiwindup: True-->
+	<!--* /controller/velocity/y/d: 0.0-->
+	<!--* /controller/velocity/y/i: 1.0-->
+	<!--* /controller/velocity/y/i_clamp: 5.0-->
+	<!--* /controller/velocity/y/p: 2.0-->
+	<!--* /controller/velocity/y/publish_state: True-->
+	<!--* /controller/velocity/z/antiwindup: True-->
+	<!--* /controller/velocity/z/d: 0.0-->
+	<!--* /controller/velocity/z/i: 1.0-->
+	<!--* /controller/velocity/z/i_clamp: 5.0-->
+	<!--* /controller/velocity/z/max: 5.0-->
+	<!--* /controller/velocity/z/p: 5.0-->
 
 
 

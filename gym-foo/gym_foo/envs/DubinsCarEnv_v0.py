@@ -3,7 +3,7 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 import gazebo_env
-from utils.utils import *
+from utils import *
 
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Twist, Pose, Pose2D

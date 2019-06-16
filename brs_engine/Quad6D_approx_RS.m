@@ -125,7 +125,7 @@ end
 % Solver parameters
 uMode = 'min';
 vis = false;
-quiet = true;
+quiet = false;
 keepLast = false;
 
 sDX.dynSys = q_X;
