@@ -3,7 +3,7 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 import gazebo_env
-from utils.utils import *
+from utils import *
 from sensor_msgs.msg import LaserScan
 
 from gazebo_msgs.msg import ModelState

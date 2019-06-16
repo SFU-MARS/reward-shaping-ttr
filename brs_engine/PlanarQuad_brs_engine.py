@@ -24,15 +24,15 @@ GOAL_STATE = np.array([4., 0., 4., 0., 0.75, 0.])
 # START_STATE = np.array([-3.182, 0., 3., 0., 0., 0.])
 
 
-class Quadrotor_brs_engine:
+class Quadrotor_brs_engine(object):
     # Starts and sets up the MATLAB engine that runs in the background.
     def __init__(self):
         self.eng = matlab.engine.start_matlab()
-        self.eng.cd("../IROS2019/brs_engine", nargout=0)
-        self.eng.eval("addpath(genpath('../../toolboxls/Kernel'))", nargout=0)
-        self.eng.eval("addpath(genpath('../../helperOC'));", nargout=0)
+        self.eng.cd("../brs_engine", nargout=0)
+        self.eng.eval("addpath(genpath('../toolboxls/Kernel'))", nargout=0)
+        self.eng.eval("addpath(genpath('../helperOC'));", nargout=0)
 
-    def reset_variables(self, tMax=15., interval=0.1, nPoints=41):
+    def reset_variables(self, tMax=15.0, interval=0.1, nPoints=41):
 
         self.state_dim = len(GOAL_STATE)
         self.Thrustmin = 0
@@ -69,7 +69,8 @@ class Quadrotor_brs_engine:
         self.interval = float(interval)
 
         # These functions' order should be correct
-        cur_path = os.getcwd() + '/brs_engine'
+        cur_path = os.getcwd()
+        # cur_path = os.getcwd() + '/brs_engine'
         if os.path.exists(cur_path + '/ttrX.mat') and os.path.exists(cur_path + '/ttrY.mat') and os.path.exists(cur_path + '/ttrW.mat') \
             and os.path.exists(cur_path + '/ttrVxPhi.mat') and os.path.exists(cur_path + '/ttrVyPhi.mat'):
             self.eng.eval("load ttrX.mat ttrX", nargout=0)
@@ -207,5 +208,9 @@ class Quadrotor_brs_engine:
                     self.w_ttr_check(states[:, W_IDX]))
         rslt = np.max(tmp_ttr, axis=0)
         return rslt[0]
+
+if __name__ == "__main__":
+    quad_engine = Quadrotor_brs_engine()
+    quad_engine.reset_variables()
 
 
