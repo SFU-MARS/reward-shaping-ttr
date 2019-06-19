@@ -33,9 +33,14 @@ class DubinsCar_brs_engine(object):
     # Starts and sets up the MATLAB engine that runs in the background.
     def __init__(self):
         self.eng = matlab.engine.start_matlab()
-        self.eng.cd("/home/xlv/Desktop/IROS2019/brs_engine", nargout=0)
-        self.eng.eval("addpath(genpath('/home/xlv/Desktop/toolboxls/Kernel'))", nargout=0)
-        self.eng.eval("addpath(genpath('/home/xlv/Desktop/helperOC'));", nargout=0)
+        
+        cur_path = os.path.dirname(os.path.abspath(__file__))
+        print("cur_path:", cur_path)
+        self.eng.workspace['cur_path'] = cur_path
+        self.eng.workspace['home_path'] = os.environ['PROJ_HOME'] 
+        self.eng.eval("addpath(genpath([home_path, '/toolboxls']));", nargout=0)
+        self.eng.eval("addpath(genpath([home_path, '/helperOC']));", nargout=0)
+        self.eng.eval("addpath(genpath(cur_path));", nargout=0)
 
     def reset_variables(self, tMax=15.0, interval=0.1, nPoints=41):
 
@@ -77,7 +82,7 @@ class DubinsCar_brs_engine(object):
         # self.ttr_interpolation()
 
         # These functions' order should be correct
-        cur_path = os.getcwd() + '/brs_engine'
+        cur_path = os.path.dirname(os.path.abspath(__file__))
         if os.path.exists(cur_path + '/ttrValue.mat') :
             self.eng.eval("load ttrValue.mat ttrValue", nargout=0)
             self.ttrValue = self.eng.workspace['ttrValue']
@@ -120,9 +125,10 @@ class DubinsCar_brs_engine(object):
                                           self.tMax,
                                           self.interval,
                                           nargout=1)
-
+        print("preparing to save ttrValue for dubins car")
         self.eng.workspace['ttrValue'] = self.ttrValue
         self.eng.eval("save ttrValue.mat ttrValue", nargout=0)
+        print("ttrValue saved successfully!!")
 
     def ttr_interpolation(self):
 
