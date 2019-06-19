@@ -58,6 +58,8 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         self.reward_type = None
         self.brsEngine = None
 
+        print("successfully initialized!!")
+
     def _discretize_laser(self, laser_data, new_ranges):
 
         discretized_ranges = []
@@ -162,7 +164,11 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
             self.unpause()
         except rospy.ServiceException as e:
             print ("/gazebo/unpause_physics service call failed")
-
+        
+        print("successfully unpaused!!")
+        
+        laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
+        
         # read laser data
         laser_data = None
         dynamic_data = None
@@ -177,7 +183,9 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
                     print("/gazebo/unpause_physics service call failed")
             except:
                 pass
-
+        
+        print("laser data", laser_data)
+        print("dynamics data", dynamic_data)
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
             self.pause()
@@ -186,10 +194,12 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
         obsrv = self.get_obsrv(laser_data, dynamic_data)
         self.pre_obsrv = obsrv
-
+        print("successfully reset!!")
         return np.asarray(obsrv)
 
     def step(self, action):
+        
+        print("entering to setp func")
         rospy.wait_for_service('/gazebo/unpause_physics')
         try:
             self.unpause()
@@ -246,8 +256,10 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         cmd_vel = Twist()
         cmd_vel.linear.x = linear_vel
         cmd_vel.angular.z = angular_vel
+        print("cmd_vel",cmd_vel)
         self.vel_pub.publish(cmd_vel)
-
+        
+        print(cmd_vel)
         laser_data = None
         dynamic_data = None
         while laser_data is None and dynamic_data is None:

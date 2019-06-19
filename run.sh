@@ -12,7 +12,13 @@
 #/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
 #/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
 #
-/usr/bin/python3.5 /local-scratch/xlv/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
+
+BASEDIR=$(dirname "$0")
+# echo "$BASEDIR"
+# python3.5 $BASEDIR/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
+python3.5 $BASEDIR/train.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --algo=ppo
+
+
 #/usr/bin/python3.5 /local-scratch/xlv/IROS2019/train.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
 #/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
 

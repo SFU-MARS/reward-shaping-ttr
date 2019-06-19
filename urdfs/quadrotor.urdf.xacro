@@ -4,7 +4,7 @@
     <xacro:property name="M_PI_2" value="1.5707963267945" />
 
     <!-- Included URDF Files -->
-    <xacro:include filename="./quadrotor_base.urdf.xacro" />
+    <xacro:include filename="quadrotor_base.urdf.xacro" />
 
     <!-- Instantiate quadrotor_base_macro once (has no parameters atm) -->
     <xacro:quadrotor_base_macro />
