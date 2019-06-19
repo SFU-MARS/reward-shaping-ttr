@@ -7,7 +7,7 @@ from keras.models import load_model
 from keras.regularizers import l2
 
 #from examples.turtlebot import memory
-import memory
+from utils import memory
 
 class DeepQ:
     """

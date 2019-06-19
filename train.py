@@ -1,6 +1,6 @@
 
 import gym
-import gym_foo
+from gym_foo import gym_foo
 from gym import wrappers
 from time import *
 from brs_engine.DubinsCar_brs_engine import *
@@ -314,7 +314,7 @@ if __name__ == "__main__":
         maybe_mkdir(MODEL_DIR)
         maybe_mkdir(FIGURE_DIR)
         maybe_mkdir(RESULT_DIR)
-        ppo_params_json = './ppo_params.json'
+        ppo_params_json = os.environ['PROJ_HOME']+'/ppo_params.json'
 
         # Start to train the policy
         trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json)

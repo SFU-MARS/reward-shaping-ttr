@@ -2,7 +2,7 @@ import matlab.engine
 import os
 import numpy as np
 from scipy.interpolate import RectBivariateSpline, interp1d, RegularGridInterpolator
-from gym_foo.envs.DubinsCarEnv_v0 import DubinsCarEnv_v0
+from gym_foo.gym_foo.envs.DubinsCarEnv_v0 import DubinsCarEnv_v0
 
 # This import has side effects required for the kwarg projection='3d' in the call to fig.add_subplot
 from mpl_toolkits.mplot3d import Axes3D

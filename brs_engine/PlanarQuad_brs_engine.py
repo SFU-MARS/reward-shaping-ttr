@@ -2,7 +2,7 @@ import matlab.engine
 import os
 import numpy as np
 from scipy.interpolate import RectBivariateSpline, interp1d
-from gym_foo.envs.PlanarQuadEnv_v0 import PlanarQuadEnv_v0
+from gym_foo.gym_foo.envs.PlanarQuadEnv_v0 import PlanarQuadEnv_v0
 
 # Note: the state variables and dims could not be equal to that in learning process
 # But now, after discussion with Mo, we decide to use the same state variables as learning, but different action variables.
@@ -28,10 +28,15 @@ class Quadrotor_brs_engine(object):
     # Starts and sets up the MATLAB engine that runs in the background.
     def __init__(self):
         self.eng = matlab.engine.start_matlab()
-        self.eng.cd("../brs_engine", nargout=0)
-        self.eng.eval("addpath(genpath('../toolboxls/Kernel'))", nargout=0)
-        self.eng.eval("addpath(genpath('../helperOC'));", nargout=0)
+        
 
+        cur_path = os.path.dirname(os.path.abspath(__file__))
+        self.eng.workspace['cur_path'] = cur_path
+        self.eng.workspace['home_path'] = os.environ['PROJ_HOME'] 
+        self.eng.eval("addpath(genpath([home_path, '/toolboxls']));", nargout=0)
+        self.eng.eval("addpath(genpath([home_path, '/helperOC']));", nargout=0)
+        self.eng.eval("addpath(genpath(cur_path));", nargout=0)
+    
     def reset_variables(self, tMax=15.0, interval=0.1, nPoints=41):
 
         self.state_dim = len(GOAL_STATE)
@@ -69,7 +74,7 @@ class Quadrotor_brs_engine(object):
         self.interval = float(interval)
 
         # These functions' order should be correct
-        cur_path = os.getcwd()
+        cur_path = os.path.dirname(os.path.abspath(__file__))
         # cur_path = os.getcwd() + '/brs_engine'
         if os.path.exists(cur_path + '/ttrX.mat') and os.path.exists(cur_path + '/ttrY.mat') and os.path.exists(cur_path + '/ttrW.mat') \
             and os.path.exists(cur_path + '/ttrVxPhi.mat') and os.path.exists(cur_path + '/ttrVyPhi.mat'):

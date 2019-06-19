@@ -3,7 +3,7 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 import gazebo_env
-from utils import *
+from utils.utils import *
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Twist, Pose
 from geometry_msgs.msg import Wrench
@@ -506,7 +506,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         tmp_z = dynamic_data.pose.position.z
 
         if tmp_z <= laser_min_range:
-            print("tmp_z:", tmp_z)
+            # print("tmp_z:", tmp_z)
             return True
         if Euclid_dis((tmp_x, tmp_z), OBSTACLES_POS[0]) < 1.3 or Euclid_dis((tmp_x, tmp_z), OBSTACLES_POS[1]) < 1.3 \
                 or Euclid_dis((tmp_x, tmp_z), OBSTACLES_POS[2]) < 1.5 \
@@ -659,7 +659,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         action = action + 8.8  # a little more power for easier launch away from ground
         if sum(np.isnan(action)) > 0:
             raise ValueError("Passed in nan to step! Action: " + str(action))
-
+        print("action:",action)
         pre_phi = self.pre_obsrv[4]
 
         wrench = Wrench()
@@ -674,7 +674,8 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
 
         rospy.wait_for_service('/gazebo/apply_body_wrench')
         self.force(body_name="base_link", reference_frame="world", wrench=wrench, start_time=rospy.Time().now(), duration=rospy.Duration(1))
-
+        # self.force(body_name="base_link", reference_frame="base_link", wrench=wrench, start_time=rospy.Time().now(), duration=rospy.Duration(1))
+        
         # rospy.wait_for_service("/gazebo/apply_joint_effort")
         # try:
         #     status_left = self.apply_joint_effort(joint_name='left_joint', effort=action[0],
