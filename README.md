@@ -84,7 +84,7 @@ alias killgazebogym='killall -9 rosout roslaunch rosmaster gzserver nodelet robo
    + change the $PROJ_HOME in env_vars.sh
    ```
    $PROJ_HOME = 'path you place this repo at'
-  
+   ```
    + you may need to recompile catkin_ws folder to let it recognize your filepath
    + everytime you build something new in catkin_ws or modify something in env_vars, remember
    ```
