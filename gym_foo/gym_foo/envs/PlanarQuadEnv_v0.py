@@ -23,6 +23,7 @@ import rospy
 import time
 import copy
 
+from brs_engine.PlanarQuad_brs_engine import *
 # from hector_uav_msgs.srv import EnableMotors
 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -399,7 +400,7 @@ WALLS_POS = [(-5., 5.), (5., 5.), (0.0, 9.85), (0.0, 5.)]
 
 
 class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
-    def __init__(self):
+    def __init__(self, **kwargs):
         # Launch the simulation with the given launchfile name
         gazebo_env.GazeboEnv.__init__(self, "QuadrotorAirSpace_v0.launch")
         # self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
@@ -451,11 +452,15 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         low_obsrv = np.array([-5., -2., 0., -2., -np.pi, -np.pi/3] + [0] * self.num_lasers)
 
         # controls are two thrusts
-        high_action = np.array([10., 10.])
-        low_action = np.array([8., 8.])
+        # high_action = np.array([10., 10.])
+        # low_action = np.array([8., 8.])
+
+        high_action = np.array([2., 2.])
+        low_action  = np.array([-2., -2.])
 
         self.state_space = spaces.Box(low=low_state, high=high_state)
         self.observation_space = spaces.Box(low=low_obsrv, high=high_obsrv)
+
         self.action_space = spaces.Box(low=low_action, high=high_action)
 
         self.state_dim = 6
@@ -466,10 +471,17 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         self.goal_phi_limit = np.pi / 6.
         self.pre_obsrv = None
         self.reward_type = None
-        self.set_hover_end = None
+        self.set_angle_goal = None
         self.brsEngine = None
 
         self.goal_level_high = False
+
+
+        #self.reward_type = kwargs['reward_type']
+        #self.set_hover_end = kwargs['set_hover_end']
+        #if self.reward_type == 'ttr':
+        #    self.brsEngine = Quadrotor_brs_engine() 
+        #    self.brsEngine.reset_variables()
 
     def _discretize_laser(self, laser_data, new_ranges):
 
@@ -532,12 +544,12 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         # print("phi:", phi)
 
         # just consider pose restriction
-        if self.set_hover_end == 'false':
+        if self.set_angle_goal == 'false':
             if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance:
                 return True
             else:
                 return False
-        elif self.set_hover_end == 'true':
+        elif self.set_angle_goal == 'true':
             if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance \
                     and (abs(phi - self.goal_state[4]) < 0.40):
                 return True
@@ -554,7 +566,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
             # else:
             #     return False
         else:
-            raise ValueError("invalid param for set_hover_end!")
+            raise ValueError("invalid param for set_angle_goal!")
 
     def get_obsrv(self, laser_data, dynamic_data):
 
@@ -650,18 +662,20 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         except rospy.ServiceException as e:
             print("/gazebo/unpause_physics service call failed")
 
-        # clip action
-        # print("original action output from NN:", action)
-        # action = np.clip(action + 9.0, self.action_space.low, self.action_space.high)
-        # print("action after being clipped", action)
-
-        # action = action + 8.5
-        action = action + 8.8  # a little more power for easier launch away from ground
         if sum(np.isnan(action)) > 0:
             raise ValueError("Passed in nan to step! Action: " + str(action))
-        print("action:",action)
-        pre_phi = self.pre_obsrv[4]
 
+        # --- previously direct shift mean of Gaussian from 0 to 8.8 around ---
+        # print("action:",action)
+        # action = action + 8.8  # a little more power for easier launch away from ground
+        # --------------------------------------------------------------------
+
+        # --- now, try action transformation [-2,2] -> [7,10]---
+        action = [7 + (10 - 7) * (a_i - (-2)) / (2 - (-2)) for a_i in action] 
+        # print("action:", action)
+        # -------------------------------------------------
+
+        pre_phi = self.pre_obsrv[4]
         wrench = Wrench()
         wrench.force.x = (action[0] + action[1]) * np.sin(pre_phi)
         wrench.force.y = 0
@@ -770,8 +784,9 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         # rospy.loginfo("reward: %f", reward)
         # assert reward < 0
         # print("reward,", reward)
-        return np.asarray(obsrv), reward, done, suc, {}
-
+        
+        # return np.asarray(obsrv), reward, done, suc, {}
+        return np.asarray(obsrv), reward, done, {}
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]

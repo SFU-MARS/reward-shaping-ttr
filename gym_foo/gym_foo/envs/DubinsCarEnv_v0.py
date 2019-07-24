@@ -25,9 +25,11 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
     def __init__(self):
         # Launch the simulation with the given launchfile name
         # Notice： here we use 5D state. But in DubinsCarEngine we will use 3D state. We need seperate these two parts to make program more flexiable
-
         gazebo_env.GazeboEnv.__init__(self, "DubinsCarCircuitGround_v0.launch")
-        self.vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=5)
+        # self.vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=5)
+        #self.vel_pub = rospy.Publisher('/turtlebot/commands/velocity', Twist, queue_size=5)
+
+
         self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
@@ -143,7 +145,7 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
             pose = Pose()
             pose.position.x = np.random.uniform(low=START_STATE[0]-0.5, high=START_STATE[0]+0.5)
             pose.position.y = np.random.uniform(low=START_STATE[1]-0.5, high=START_STATE[1]+0.5)
-            pose.position.z = self.get_model_states(model_name="mobile_base").pose.position.z
+            pose.position.z = self.get_model_states(model_name="dubins_car").pose.position.z
             theta = np.random.uniform(low=START_STATE[2], high=START_STATE[2]+np.pi)
             ox, oy, oz, ow = quaternion_from_euler(0.0, 0.0, theta)
             pose.orientation.x = ox
@@ -152,7 +154,8 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
             pose.orientation.w = ow
 
             reset_state = ModelState()
-            reset_state.model_name = "mobile_base"
+            # reset_state.model_name = "mobile_base"
+            reset_state.model_name = "dubins_car"
             reset_state.pose = pose
             self.set_model_states(reset_state)
         except rospy.ServiceException as e:
@@ -167,25 +170,27 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         
         print("successfully unpaused!!")
         
-        laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
+        #laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
         
         # read laser data
         laser_data = None
         dynamic_data = None
+
         while laser_data is None and dynamic_data is None:
             try:
                 laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
                 # dynamic_data = rospy.wait_for_message('/gazebo/model_states', ModelStates, timeout=5)
                 rospy.wait_for_service("/gazebo/get_model_state")
                 try:
-                    dynamic_data = self.get_model_states(model_name="mobile_base")
+                    # dynamic_data = self.get_model_states(model_name="mobile_base")
+                    dynamic_data = self.get_model_states(model_name="dubins_car")
                 except rospy.ServiceException as e:
                     print("/gazebo/unpause_physics service call failed")
             except:
                 pass
         
-        print("laser data", laser_data)
-        print("dynamics data", dynamic_data)
+        # print("laser data", laser_data)
+        # print("dynamics data", dynamic_data)
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
             self.pause()
@@ -250,25 +255,35 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         # if angular_vel < self.action_space.low[1]:
         #     angular_vel = self.action_space.low[1]
 
-        linear_vel = action[0]
+        linear_vel = action[0] + 0.5
         angular_vel = action[1]
 
         cmd_vel = Twist()
         cmd_vel.linear.x = linear_vel
         cmd_vel.angular.z = angular_vel
         print("cmd_vel",cmd_vel)
-        self.vel_pub.publish(cmd_vel)
-        
-        print(cmd_vel)
+
+        cur_state = ModelState()
+        # reset_state.model_name = "mobile_base"
+        cur_state.model_name = "dubins_car"
+        cur_state.twist = cmd_vel
+        cur_state.reference_frame = "dubins_car"
+        self.set_model_states(cur_state)
+
+        # self.vel_pub.publish(cmd_vel)
+
+
         laser_data = None
         dynamic_data = None
+
         while laser_data is None and dynamic_data is None:
             try:
                 laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
                 # dynamic_data = rospy.wait_for_message('/gazebo/model_states', ModelStates)
                 rospy.wait_for_service("/gazebo/get_model_state")
                 try:
-                    dynamic_data = self.get_model_states(model_name="mobile_base")
+                    # dynamic_data = self.get_model_states(model_name="mobile_base")
+                    dynamic_data = self.get_model_states(model_name="dubins_car")
                 except rospy.ServiceException as e:
                     print("/gazebo/unpause_physics service call failed")
             except:

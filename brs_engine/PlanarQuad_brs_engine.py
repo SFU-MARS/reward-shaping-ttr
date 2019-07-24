@@ -2,7 +2,7 @@ import matlab.engine
 import os
 import numpy as np
 from scipy.interpolate import RectBivariateSpline, interp1d
-from gym_foo.gym_foo.envs.PlanarQuadEnv_v0 import PlanarQuadEnv_v0
+#from gym_foo.gym_foo.envs.PlanarQuadEnv_v0 import PlanarQuadEnv_v0
 
 # Note: the state variables and dims could not be equal to that in learning process
 # But now, after discussion with Mo, we decide to use the same state variables as learning, but different action variables.
@@ -20,10 +20,11 @@ W_IDX = 5
 T1_IDX = 0
 T2_IDX = 1
 
-GOAL_STATE = np.array([4., 0., 4., 0., 0.75, 0.])
+# GOAL_STATE = np.array([4., 0., 4., 0., 0.75, 0.])
 # START_STATE = np.array([-3.182, 0., 3., 0., 0., 0.])
 
-
+# we can not let angle goal to specific value only because we assume it will be in specific task. it should be hovering at zero angle with some threshold, like [-30', 30']
+GOAL_STATE = np.array([4., 0., 4., 0., 0., 0.])
 class Quadrotor_brs_engine(object):
     # Starts and sets up the MATLAB engine that runs in the background.
     def __init__(self):
@@ -37,14 +38,15 @@ class Quadrotor_brs_engine(object):
         self.eng.eval("addpath(genpath([home_path, '/helperOC']));", nargout=0)
         self.eng.eval("addpath(genpath(cur_path));", nargout=0)
     
-    def reset_variables(self, tMax=15.0, interval=0.1, nPoints=41):
+    def reset_variables(self, tMax=10.0, interval=0.1, nPoints=41):
 
         self.state_dim = len(GOAL_STATE)
         self.Thrustmin = 0
         self.Thrustmax = 1.0 * 1.25 * 9.81
 
         self.goal_state = matlab.double([[GOAL_STATE[0]],[GOAL_STATE[1]],[GOAL_STATE[2]],[GOAL_STATE[3]],[GOAL_STATE[4]],[GOAL_STATE[5]]])
-        self.goal_radius = matlab.double([[1.0],[0.5],[1.0],[0.5],[np.pi/3],[0.25]])
+        self.goal_radius = matlab.double([[0.5],[0.2],[0.5],[0.2],[np.pi/3],[0.25]])
+         # self.goal_radius = matlab.double([[1.0],[0.5],[1.0],[0.5],[np.pi/3],[0.25]])
 
         self.gMin = matlab.double([[-5.], [-2.], [-5.], [-2.], [-np.pi], [-np.pi/2]])
         self.gMax = matlab.double([[5.], [2.], [5.], [2.], [np.pi], [np.pi/2]])
@@ -53,9 +55,9 @@ class Quadrotor_brs_engine(object):
         self.axis_coords = [np.linspace(self.gMin[i][0], self.gMax[i][0], nPoints) for i in range(self.state_dim)]
 
         # In quadrotor env, target region is set to rectangle, not cylinder
-        self.goalRectAndState = matlab.double([[GOAL_STATE[0]-1],[GOAL_STATE[2]-1],[GOAL_STATE[0]+1],[GOAL_STATE[2]+1],
-                                               [GOAL_STATE[5]], [GOAL_STATE[1]], [GOAL_STATE[3]], [GOAL_STATE[4]]])
-
+        # self.goalRectAndState = matlab.double([[GOAL_STATE[0]-1],[GOAL_STATE[2]-1],[GOAL_STATE[0]+1],[GOAL_STATE[2]+1], [GOAL_STATE[5]], [GOAL_STATE[1]], [GOAL_STATE[3]], [GOAL_STATE[4]]])
+        self.goalRectAndState = matlab.double([[GOAL_STATE[0]-0.5],[GOAL_STATE[2]-0.5],[GOAL_STATE[0]+0.5],[GOAL_STATE[2]+0.5], [GOAL_STATE[5]], [GOAL_STATE[1]], [GOAL_STATE[3]], [GOAL_STATE[4]]])
+        
         (self.initTargetAreaX, self.initTargetAreaY, self.initTargetAreaW, self.initTargetAreaVxPhi, self.initTargetAreaVyPhi) = \
             self.eng.Quad6D_create_init_target(self.gMin,
                                                 self.gMax,

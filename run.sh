@@ -1,33 +1,59 @@
 #!/usr/bin/env bash
 
 # train
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
 #
 
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance --algo=ppo --set_hover_end=true
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance --algo=ppo --set_hover_end=true
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance --algo=ppo --set_hover_end=true
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance --algo=ppo --set_hover_end=true
 
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_hover_end=true
 #
 
 BASEDIR=$(dirname "$0")
 # echo "$BASEDIR"
-# python3.5 $BASEDIR/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
-python3.5 $BASEDIR/train.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --algo=ppo
+# ------- training agent using PPO algorithm -------
+# python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_angle_goal=false
+# python3.5 $BASEDIR/train_ppo.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --algo=ppo
+
+# run 5 times for each reward type using ppo algorithm for quadrotor task
+for VARIABLE in 1 2 3 4 5
+do
+    python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_angle_goal=false
+    python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_angle_goal=false
+    python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance --algo=ppo --set_angle_goal=false
+done
+# --------------------------------------------------
+
+# ------- training agent using TRPO algorithm -------
+# python3.5 $BASEDIR/train_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --set_angle_goal=false
+# python3.5 $BASEDIR/train_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr
+
+# run 5 times for each reward type using trpo algorithm for quadrotor task
+for VARIABLE in 1 2 3 4 5
+do
+    python3.5 $BASEDIR/train_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=trpo --set_angle_goal=false
+    python3.5 $BASEDIR/train_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=trpo --set_angle_goal=false
+    python3.5 $BASEDIR/train_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance --algo=trpo --set_angle_goal=false
+done
+# ---------------------------------------------------
+
+# ------- training agent using DDPG algorithm -------
+python3.5 $BASEDIR/train_ddpg.py --env-id=PlanarQuadEnv-v0 --reward_type=ttr --set_angle_goal=false
+# python3.5 $BASEDIR/train_ddpg.py --env-id=PlanarQuadEnv-v0 --reward_type=ttr
+# ---------------------------------------------------
 
 
-#/usr/bin/python3.5 /local-scratch/xlv/IROS2019/train.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
 
 
 
 
-
-
-#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train.py --gym_env=DubinsCarEnv_dqn-v0 --reward_type=ttr --algo=dqn
+#/usr/bin/python3.5 /local-scratch/xlv/IROS2019/train_ppo.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --algo=ppo
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_hover_end=true
+#/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/train_ppo.py --gym_env=DubinsCarEnv_dqn-v0 --reward_type=ttr --algo=dqn
 
 # eval
 #/usr/bin/python3.5 /home/xlv/Desktop/IROS2019/eval.py --load_path=/home/xlv/Desktop/IROS2019/runs_paper/PlanarQuadEnv-v0_ttr_24-Feb-2019_20-33-35 --load_iter=10 --feedback_type=hand_craft
