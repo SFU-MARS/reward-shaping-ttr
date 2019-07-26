@@ -167,6 +167,7 @@ def learn(*,
     set_global_seeds(seed)
 
     np.set_printoptions(precision=3)
+
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
