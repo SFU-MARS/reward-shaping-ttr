@@ -470,6 +470,8 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         self.goal_vel_limit = 0.25
         self.goal_phi_limit = np.pi / 6.
         self.pre_obsrv = None
+
+
         self.reward_type = None
         self.set_angle_goal = None
         self.brsEngine = None
