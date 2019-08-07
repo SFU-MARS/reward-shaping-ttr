@@ -1,5 +1,5 @@
 import tensorflow as tf
-from baselines.common import tf_util
+from baselines.common import tf_util as U
 from baselines.a2c.utils import fc
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_placeholder, encode_observation
@@ -8,6 +8,7 @@ from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.common.models import get_network_builder
 
 import gym
+import os
 
 
 class PolicyWithValue(object):
@@ -113,6 +114,27 @@ class PolicyWithValue(object):
 
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
+
+    # AMEND: new methods for save model at specific iteration, by xlv
+    def save_model(self, dirname, iteration=None):
+        if iteration is not None:
+            dirname = os.path.join(dirname, 'iter_%d' % iteration)
+        else:
+            dirname = os.path.join(dirname, 'trained_model')
+
+        print('Saving model to %s' % dirname)
+        U.save_state(dirname)
+        print('Saved!')
+
+    def load_model(self, dirname, iteration=None):
+        if iteration is not None:
+            dirname = os.path.join(dirname, 'iter_%d' % iteration)
+        else:
+            dirname = os.path.join(dirname, 'trained_model')
+
+        print('Loading model from %s' % dirname)
+        U.load_state(dirname)
+        print('Loaded!')
   
 def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
     if isinstance(policy_network, str):

@@ -11,13 +11,17 @@ import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 
+from utils.plotting_performance import *
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
-    rank = MPI.COMM_WORLD.Get_rank()
+    tau=0.01, eval_env=None, param_noise_adaption_interval=50, **kwargs):
 
+    # print("kwargs:",kwargs)
+
+    rank = MPI.COMM_WORLD.Get_rank()
+    print("rank:",rank)
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
     max_action = env.action_space.high
     logger.info('scaling actions by {} before executing in env'.format(max_action))
@@ -41,13 +45,24 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     episode_rewards_history = deque(maxlen=100)
     with U.single_threaded_session() as sess:
         # Prepare everything.
+
+        # --------------- AMEND: For saving and restoring the model. added by xlv ------------------
+        if kwargs['restore'] == True and kwargs['restore_path'] != None:
+            logger.info("Restoring from saved model")
+            saver = tf.train.import_meta_graph(restore_path + "trained_model.meta")
+            saver.restore(sess, tf.train.latest_checkpoint(restore_path))
+        else:
+            logger.info("Starting from scratch!")
+            sess.run(tf.global_variables_initializer())
+        # ----------------------------------------------------------------------------------------
         agent.initialize(sess)
         sess.graph.finalize()
 
         agent.reset()
-        obs = env.reset()
-        if eval_env is not None:
-            eval_obs = eval_env.reset()
+        obs = eval_obs = env.reset()
+
+        # if eval_env is not None:
+        #     eval_obs = eval_env.reset()
         done = False
         episode_reward = 0.
         episode_step = 0
@@ -65,7 +80,18 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         epoch_actions = []
         epoch_qs = []
         epoch_episodes = 0
+
+        # every 30 epochs plot statistics and save it.
+        nb_epochs_unit = 30
+        ddpg_rewards = []
+        ddpg_suc_percents = []
+        eval_suc_percents = []
+        eval_ddpg_rewards = []
         for epoch in range(nb_epochs):
+            # ---- AMEND: added by xlv to calculate success percent -----
+            suc_num = 0
+            episode_num = 0
+            # ----------------------------------------------------------
             for cycle in range(nb_epoch_cycles):
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
@@ -77,7 +103,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     if rank == 0 and render:
                         env.render()
                     assert max_action.shape == action.shape
-                    new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    # new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    new_obs, r, done, suc, info = env.step(max_action * action)
                     t += 1
                     if rank == 0 and render:
                         env.render()
@@ -99,7 +126,11 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         episode_step = 0
                         epoch_episodes += 1
                         episodes += 1
-
+                        # --- AMEND: added by xlv to calculate success percent ---
+                        episode_num += 1
+                        if suc:
+                            suc_num += 1
+                        # -------------------------------------------------------
                         agent.reset()
                         obs = env.reset()
 
@@ -119,23 +150,23 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     agent.update_target_net()
 
                 # Evaluate.
-                eval_episode_rewards = []
-                eval_qs = []
-                if eval_env is not None:
-                    eval_episode_reward = 0.
-                    for t_rollout in range(nb_eval_steps):
-                        eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
-                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                        if render_eval:
-                            eval_env.render()
-                        eval_episode_reward += eval_r
-
-                        eval_qs.append(eval_q)
-                        if eval_done:
-                            eval_obs = eval_env.reset()
-                            eval_episode_rewards.append(eval_episode_reward)
-                            eval_episode_rewards_history.append(eval_episode_reward)
-                            eval_episode_reward = 0.
+                # eval_episode_rewards = []
+                # eval_qs = []
+                # if eval_env is not None:
+                #     eval_episode_reward = 0.
+                #     for t_rollout in range(nb_eval_steps):
+                #         eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
+                #         eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                #         if render_eval:
+                #             eval_env.render()
+                #         eval_episode_reward += eval_r
+                #
+                #         eval_qs.append(eval_q)
+                #         if eval_done:
+                #             eval_obs = eval_env.reset()
+                #             eval_episode_rewards.append(eval_episode_reward)
+                #             eval_episode_rewards_history.append(eval_episode_reward)
+                #             eval_episode_reward = 0.
 
             mpi_size = MPI.COMM_WORLD.Get_size()
             # Log stats.
@@ -189,3 +220,84 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 if eval_env and hasattr(eval_env, 'get_state'):
                     with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
                         pickle.dump(eval_env.get_state(), f)
+
+            # ------------------------------ plot statistics every nb_epochs_unit -----------------------------------
+            ddpg_rewards.append(np.mean(episode_rewards_history))
+            if (epoch + 1) % nb_epochs_unit == 0:
+                ddpg_suc_percents.append(suc_num / episode_num)
+                # ---------- Evaluate for 5 iters, each iter with 5 cycles * 100 timesteps = 500 timesteps ~ 512 ppo timesteps ------------
+                nb_eval_epochs = 5
+                eval_cycles = 5
+                eval_episode_num = 0
+                eval_suc_num = 0
+
+
+                for i_epoch in range(nb_eval_epochs):
+                    logger.log("********** Start Evaluation. Iteration %i ************" % i_epoch)
+                    for i_cycle in range(eval_cycles):
+                        eval_episode_rewards = []
+                        eval_episode_reward = 0.
+                        for t_rollout in range(nb_eval_steps):
+                            eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
+                            eval_obs, eval_r, eval_done, eval_suc, eval_info = env.step(
+                                max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                            eval_episode_reward += eval_r
+                            if eval_done:
+                                eval_obs = env.reset()
+                                eval_episode_rewards.append(eval_episode_reward)
+                                eval_episode_rewards_history.append(eval_episode_reward)
+                                eval_episode_reward = 0.
+
+                                eval_episode_num += 1
+                                if eval_suc:
+                                    eval_suc_num += 1
+                    logger.record_tabular("Eval_EpRewMean", np.mean(eval_episode_rewards))
+                    logger.record_tabular("Eval_EpSucPercent", eval_suc_num / eval_episode_num)
+                    logger.record_tabular("Eval_EpNumUntilNow", eval_episode_num)
+                    logger.record_tabular("Eval_EpNumSuc", eval_suc_num)
+                    logger.dump_tabular()
+                    eval_ddpg_rewards.append(np.mean(eval_episode_rewards))
+                eval_suc_percents.append(eval_suc_num / eval_episode_num)
+                # ----------------------------------------------------------------------------------------------
+                # --------------------- plotting and saving -------------------------
+                if saver is not None:
+                    logger.info("saving the trained model")
+                    start_time_save = time.time()
+                    if epoch + 1 == nb_epochs:
+                        saver.save(sess, kwargs['MODEL_DIR'] + "/trained_model")
+                    else:
+                        saver.save(sess, kwargs['MODEL_DIR'] + "/iter_" + str((epoch + 1) // nb_epochs_unit))
+
+                plot_performance(range(len(ddpg_rewards)), ddpg_rewards, ylabel=r'avg reward per DDPG learning step',
+                                 xlabel='ddpg iteration', figfile=os.path.join(kwargs['FIGURE_DIR'], 'ddpg_reward'), title='TRAIN')
+                plot_performance(range(len(ddpg_suc_percents)), ddpg_suc_percents,
+                                 ylabel=r'overall success percentage per algorithm step under DDPG',
+                                 xlabel='algorithm iteration', figfile=os.path.join(kwargs['FIGURE_DIR'], 'success_percent'),
+                                 title="TRAIN")
+
+                plot_performance(range(len(eval_ddpg_rewards)), eval_ddpg_rewards, ylabel=r'avg reward per DDPG eval step',
+                                 xlabel='ddpg iteration', figfile=os.path.join(kwargs['FIGURE_DIR'], 'eval_ddpg_reward'),
+                                 title='EVAL')
+                plot_performance(range(len(eval_suc_percents)), eval_suc_percents,
+                                 ylabel=r'overall eval success percentage per algorithm step under DDPG',
+                                 xlabel='algorithm iteration', figfile=os.path.join(kwargs['FIGURE_DIR'], 'eval_success_percent'),
+                                 title="EVAL")
+
+                # save data which is accumulated UNTIL iter i
+                with open(kwargs['RESULT_DIR'] + '/ddpg_reward_' + 'iter_' + str((epoch + 1) // nb_epochs_unit) + '.pickle', 'wb') as f2:
+                    pickle.dump(ddpg_rewards, f2)
+                with open(kwargs['RESULT_DIR'] + '/success_percent_' + 'iter_' + str((epoch + 1) // nb_epochs_unit) + '.pickle', 'wb') as fs:
+                    pickle.dump(ddpg_suc_percents, fs)
+
+
+                # save evaluation data accumulated until iter i
+                with open(kwargs['RESULT_DIR'] + '/eval_ddpg_reward_' + 'iter_' + str((epoch + 1) // nb_epochs_unit) + '.pickle', 'wb') as f_er:
+                    pickle.dump(eval_ddpg_rewards, f_er)
+                with open(kwargs['RESULT_DIR'] + '/eval_success_percent_' + 'iter_' + str((epoch + 1) // nb_epochs_unit) + '.pickle', 'wb') as f_es:
+                    pickle.dump(eval_suc_percents, f_es)
+                # -------------------------------------------------------------------
+            # -----------------------------------------------------------------------------------------------------
+
+
+
+

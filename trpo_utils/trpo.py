@@ -17,13 +17,18 @@ def create_session(num_cpu=None):
 
 def create_policy(env, network, value_network='copy', **network_kwargs):
     policy_fn = build_policy(env, network, value_network, **network_kwargs)
-    return policy_fn
+
+    ob_space = env.observation_space
+    ac_space = env.action_space
+
+    ob = observation_placeholder(ob_space)
+    return policy_fn(observ_placeholder=ob)
 
 def initialize():
     U.initialize()
 
 
-def trpo_learn(env, policy_fn,
+def trpo_learn(env, policy,
                 timesteps_per_batch=1024, # what to train on
                 max_kl=0.001,
                 cg_iters=10,
@@ -42,7 +47,6 @@ def trpo_learn(env, policy_fn,
     rank = MPI.COMM_WORLD.Get_rank()
 
     # policy = build_policy(env, network, value_network='copy', **network_kwargs)
-    policy = policy_fn
     set_global_seeds(seed)
 
     np.set_printoptions(precision=3)
@@ -54,9 +58,10 @@ def trpo_learn(env, policy_fn,
 
     ob = observation_placeholder(ob_space)
     with tf.variable_scope("pi"):
-        pi = policy(observ_placeholder=ob)
+        # pi = policy(observ_placeholder=ob)
+        pi = policy
     with tf.variable_scope("oldpi"):
-        oldpi = policy(observ_placeholder=ob)
+        oldpi = create_policy(env, network='mlp',value_network='copy')
 
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
@@ -85,6 +90,10 @@ def trpo_learn(env, policy_fn,
     # vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
     var_list = get_pi_trainable_variables("pi")
     vf_var_list = get_vf_trainable_variables("pi")
+
+    print("length of old_pi_var_list:", len(get_oldpi_trainable_variables("oldpi")))
+    print("length of pi_var_list:", len(var_list))
+    print("length of vf_var_list:", len(vf_var_list))
 
     vfadam = MpiAdam(vf_var_list)
 

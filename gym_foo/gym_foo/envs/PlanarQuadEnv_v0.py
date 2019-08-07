@@ -17,7 +17,7 @@ from gazebo_msgs.srv import ApplyJointEffort
 from gazebo_msgs.srv import JointRequest # the type of clear joint effort
 from gazebo_msgs.srv import ApplyBodyWrench
 
-
+from gazebo_msgs.msg import ContactsState
 
 import rospy
 import time
@@ -473,12 +473,11 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
 
 
         self.reward_type = None
-        self.set_angle_goal = None
+        self.set_additional_goal = None
         self.brsEngine = None
 
-        self.goal_level_high = False
-
-
+        self.step_counter = 0
+        # self.goal_level_high = False
         #self.reward_type = kwargs['reward_type']
         #self.set_hover_end = kwargs['set_hover_end']
         #if self.reward_type == 'ttr':
@@ -511,6 +510,14 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
                 discretized_ranges.append(int(laser_data.ranges[new_i]))
 
         return discretized_ranges
+
+    # def _in_obst(self, contact_data):
+    #
+    #     if len(contact_data.states) != 0:
+    #         if contact_data.states[0].collision1_name != "" and contact_data.states[0].collision2_name != "":
+    #             return True
+    #     else:
+    #             return False
 
     def _in_obst(self, laser_data, dynamic_data):
         laser_min_range = 0.6
@@ -545,15 +552,29 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         phi = state[4]
         # print("phi:", phi)
 
+        vx = state[1]
+        vz = state[3]
+
         # just consider pose restriction
-        if self.set_angle_goal == 'false':
+        if self.set_additional_goal == 'None':
             if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance:
+                print("in goal!!")
                 return True
             else:
                 return False
-        elif self.set_angle_goal == 'true':
+        elif self.set_additional_goal == 'angle':
+            # angle region from 0.4 to 0.3. increase difficulty
             if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance \
-                    and (abs(phi - self.goal_state[4]) < 0.40):
+                    and (abs(phi - self.goal_state[4]) < 0.30):
+                print("in goal!!")
+                return True
+            else:
+                return False
+
+        elif self.set_additional_goal == 'vel':
+            if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance \
+                    and abs(vx - self.goal_state[1]) < self.goal_vel_limit and abs(vz - self.goal_state[3]) < self.goal_vel_limit:
+                print("in goal!!")
                 return True
             else:
                 return False
@@ -568,7 +589,29 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
             # else:
             #     return False
         else:
-            raise ValueError("invalid param for set_angle_goal!")
+            raise ValueError("invalid param for set_additional_goal!")
+
+    def _in_half_goal(self, state):
+        assert len(state) == self.state_dim
+
+        x = state[0]
+        z = state[2]
+        # print("z pos:", z)
+
+        phi = state[4]
+        # print("phi:", phi)
+
+        vx = state[1]
+        vz = state[3]
+
+        if self.set_additional_goal == 'angle' or self.set_additional_goal == 'vel':
+            if np.sqrt((x - self.goal_state[0]) ** 2 + (z - self.goal_state[2]) ** 2) <= self.goal_pos_tolerance:
+                print("in half goal, pos reached!")
+                return True
+            else:
+                return False
+        else:
+            raise ValueErrror('None additional goal does not have half_goal!!')
 
     def get_obsrv(self, laser_data, dynamic_data):
 
@@ -705,13 +748,16 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
 
         laser_data = None
         dynamic_data = None
+        # contact_data = None
         while laser_data is None and dynamic_data is None:
             try:
                 laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
                 # dynamic_data = rospy.wait_for_message('/gazebo/model_states', ModelStates)
                 rospy.wait_for_service("/gazebo/get_model_state")
                 try:
+                    # contact_data = rospy.wait_for_message('/gazebo_ros_bumper', ContactsState, timeout=50)
                     dynamic_data = self.get_model_state(model_name="quadrotor")
+
                 except rospy.ServiceException as e:
                     print("/gazebo/unpause_physics service call failed")
             except:
@@ -736,47 +782,76 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         if self.reward_type == 'hand_craft':
             # reward = -self.control_reward_coff * (action[0] ** 2 + action[1] ** 2)
             # reward = -1
-            reward = 0
+            reward += 0
         elif self.reward_type == 'ttr' and self.brsEngine is not None:
             # Notice z-axis ttr space is defined from (-5,5), in gazebo it's in (0,10), so you need -5 when you want correct ttr reward
             ttr_obsrv = copy.deepcopy(obsrv)
             ttr_obsrv[2] = ttr_obsrv[2] - 5
             ttr = self.brsEngine.evaluate_ttr(np.reshape(ttr_obsrv[:6], (1, -1)))
-            reward = -ttr
+            reward += -ttr
         elif self.reward_type == 'distance':
-            reward = -(Euclid_dis((obsrv[0], obsrv[2]), (GOAL_STATE[0], GOAL_STATE[2])))
+            reward += -(Euclid_dis((obsrv[0], obsrv[2]), (GOAL_STATE[0], GOAL_STATE[2])))
+            # reward += (-Euclid_dis((obsrv[0], obsrv[2]), (GOAL_STATE[0], GOAL_STATE[2])) - abs(obsrv[1]-GOAL_STATE[1]) - abs(obsrv[3]-GOAL_STATE[3]))
+        elif self.reward_type == 'distance_lambda_0.1':
+            delta_x = obsrv[0] - GOAL_STATE[0]
+            delta_z = obsrv[2] - GOAL_STATE[2]
+            delta_theta = obsrv[4] - GOAL_STATE[4]
 
+            reward += -np.sqrt(delta_x**2 + delta_z**2 + 0.1 * delta_theta ** 2)
+        elif self.reward_type == 'distance_lambda_1':
+            delta_x = obsrv[0] - GOAL_STATE[0]
+            delta_z = obsrv[2] - GOAL_STATE[2]
+            delta_theta = obsrv[4] - GOAL_STATE[4]
+
+            reward += -np.sqrt(delta_x ** 2 + delta_z ** 2 + 1.0 * delta_theta ** 2)
+        elif self.reward_type == 'distance_lambda_10:':
+            delta_x = obsrv[0] - GOAL_STATE[0]
+            delta_z = obsrv[2] - GOAL_STATE[2]
+            delta_theta = obsrv[4] - GOAL_STATE[4]
+
+            reward += -np.sqrt(delta_x ** 2 + delta_z ** 2 + 10.0 * delta_theta ** 2)
+        else:
+            raise ValueError("no option for step reward!")
+        #
+        # print("step reward:", reward)
+        # print("self.reward_type:", self.reward_type)
         done = False
         suc = False
+        self.step_counter += 1
 
         # 1. when collision happens, done = True
         if self._in_obst(laser_data, dynamic_data):
             reward += self.collision_reward
             done = True
+            self.step_counter = 0
 
         # 2. In the neighbor of goal state, done is True as well. Only considering velocity and pos
         if self._in_goal(np.array(obsrv[:6])):
-
-            # two-levels goal reward setting
-            # if self.goal_level_high:
-            #     reward += self.goal_reward
-            # else:
-            #     reward += self.goal_reward / 2.
-            # print("high level goal? ", self.goal_level_high)
-            # self.goal_level_high = False
-
             reward += self.goal_reward
             done = True
             suc = True
-            print("in goal reward:", reward)
+            self.step_counter = 0
+            # print("in goal reward:", reward)
 
-            if abs(obsrv[4] - self.goal_state[4]) < 0.40:
-                print("good tilting!")
+
+
+        # elif self._in_half_goal(np.array(obsrv[:6])):
+        #     reward += self.goal_reward/4
+        # else:
+        #     pass
+
+
+        # if abs(obsrv[4] - self.goal_state[4]) < 0.40:
+        #     print("good tilting!")
 
         if obsrv[4] > 1.2 or obsrv[4] < -1.2:
             reward += self.collision_reward * 2
             done = True
+            self.step_counter = 0
 
+        if self.step_counter >= 30:
+            done = True
+            self.step_counter = 0
         # 3. Maybe episode length limit is another factor for resetting the robot, stay tuned.
         # waiting to be implemented
         # if action[0] >= 10 or action[1] >= 10:
@@ -787,8 +862,9 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         # assert reward < 0
         # print("reward,", reward)
         
-        # return np.asarray(obsrv), reward, done, suc, {}
-        return np.asarray(obsrv), reward, done, {}
+        return np.asarray(obsrv), reward, done, suc, {}
+        # return np.asarray(obsrv), reward, done, {}
+
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]

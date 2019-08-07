@@ -74,9 +74,10 @@ def ppo_eval(env, policy, timesteps_per_actorbatch, max_iters=0, stochastic=Fals
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
         logger.record_tabular("TimeElapsed", time.time() - tstart)
+        logger.record_tabular("success percentage", suc_counter * 1.0 / ep_counter)
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
-    logger.record_tabular("success percentage", suc_counter * 1.0 / ep_counter)
+
     return pi, ep_mean_lens, ep_mean_rews, suc_counter * 1.0 / ep_counter
 
 def ppo_learn(env, policy,
@@ -253,6 +254,6 @@ def ppo_learn(env, policy,
     #     rewards_map[start] = np.mean(rewards_map[start])
     # return pi, rewards_map, ep_mean_lens, ep_mean_rews
 
-    # added by xlv for success percentage
+    # AMEND: added by xlv for success percentage
     logger.record_tabular("success percentage", suc_counter * 1.0 / ep_counter)
     return pi, ep_mean_lens, ep_mean_rews, suc_counter * 1.0 / ep_counter

@@ -19,6 +19,8 @@ def plot_performance(x, y,
                      figfile=None,
                      pickle = False):
     print('plot_performance', flush=True);
+    # plt.rcParams["axes.edgecolor"] = "0.15"
+    # plt.rcParams["axes.grid"] = True
     fig, ax = plt.subplots()
 
     ax.plot(x, y)

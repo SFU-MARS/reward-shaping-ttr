@@ -10,6 +10,7 @@ import ppo
 import deepq
 import utils.liveplot as liveplot
 from utils.plotting_performance import *
+from baselines import logger
 
 import argparse
 from utils.utils import *
@@ -72,7 +73,7 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
         i = 1
         while i <= num_iters:
             wall_clock_time.append(time())
-            print('overall training iteration %d' %i)
+            logger.info('overall training iteration %d' %i)
             # each learning step contains "num_ppo_iters" ppo-learning steps.
             # each ppo-learning steps == ppo-learning on single episode
             # each single episode is a single markov chain which contains many states, actions, rewards.
@@ -96,26 +97,32 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
                              ylabel=r'overall success percentage per algorithm step',
                              xlabel='algorithm iteration', figfile=os.path.join(FIGURE_DIR, 'success_percent'), title="TRAIN")
 
-            # for plotting evaluation perf on success rate using early stopping trick
+            # --- for plotting evaluation perf on success rate using early stopping trick ---
+            logger.record_tabular('suc_percent', suc_percent)
+            logger.record_tabular('best_suc_percent', best_suc_percent)
+            logger.record_tabular('perf_flag', perf_flag)
+            logger.dump_tabular()
             if suc_percent > best_suc_percent:
                 best_suc_percent = suc_percent
-                best_pi = copy.deepcopy(pi)
+                best_pi = pi
             if suc_percent > 0.6:
                 perf_flag = True
             if not perf_flag:
-                _, _, eval_ep_mean_reward, eval_suc_percent = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch, max_iters=5, stochastic=False)
+                # less timesteps_per_actorbatch to make eval faster.
+                _, _, eval_ep_mean_reward, eval_suc_percent = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
             else:
-                _, _, eval_ep_mean_reward, eval_suc_percent = algorithm.ppo_eval(env, best_pi, timesteps_per_actorbatch,
+                _, _, eval_ep_mean_reward, eval_suc_percent = algorithm.ppo_eval(env, best_pi, timesteps_per_actorbatch//2,
                                                                                  max_iters=5, stochastic=False)
             eval_ppo_reward.extend(eval_ep_mean_reward)
             eval_suc_percents.append(eval_suc_percent)
 
             plot_performance(range(len(eval_ppo_reward)), eval_ppo_reward, ylabel=r'avg reward per ppo-eval step',
-                             xlabel='ppo iteration', figfile=os.path.join(FIGURE_DIR, 'eval_ppo_reward', title='EVAL')
+                             xlabel='ppo iteration', figfile=os.path.join(FIGURE_DIR, 'eval_ppo_reward'), title='EVAL')
             plot_performance(range(len(eval_suc_percents)), eval_suc_percents,
                              ylabel=r'overall eval success percentage per algorithm step',
                              xlabel='algorithm iteration', figfile=os.path.join(FIGURE_DIR, 'eval_success_percent'),
                              title="EVAL")
+            # -------------------------------------------------------------------------------
 
 
 
@@ -130,9 +137,9 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
                 pickle.dump(wall_clock_time, ft)
 
             # save evaluation data accumulated until iter i
-            with open(RESULT_DIR + 'eval_ppo_reward_' + 'iter_' +str(i) + '.pickle','wb') as f_er:
+            with open(RESULT_DIR + '/eval_ppo_reward_' + 'iter_' +str(i) + '.pickle','wb') as f_er:
                 pickle.dump(eval_ppo_reward, f_er)
-            with open(RESULT_DIR + 'eval_success_percent_' + 'iter_' + str(i) + '.pickle', 'wb') as f_es:
+            with open(RESULT_DIR + '/eval_success_percent_' + 'iter_' + str(i) + '.pickle', 'wb') as f_es:
                 pickle.dump(eval_suc_percents, f_es)
 
             # Incrementing our algorithm's loop counter
@@ -302,7 +309,7 @@ if __name__ == "__main__":
     parser.add_argument("--gym_env", help="which gym environment to use.", type=str, default='DubinsCarEnv-v0')
     parser.add_argument("--reward_type", help="which type of reward to use.", type=str, default='hand_craft')
     parser.add_argument("--algo", help="which type of algorithm to use.", type=str, default='ppo')
-    parser.add_argument("--set_angle_goal", type=str, default="false")
+    parser.add_argument("--set_additional_goal", type=str, default="None")
     args = parser.parse_args()
 
     RUN_DIR = MODEL_DIR = FIGURE_DIR = RESULT_DIR = None
@@ -319,12 +326,19 @@ if __name__ == "__main__":
         MODEL_DIR = os.path.join(RUN_DIR, 'model')
     # ---------------------------
 
+    # ------- logger initialize and configuration -------
+    logger.configure(dir=RUN_DIR)
+    # ---------------------------------------------------
+
     # Initialize environment and reward type
     env = gym.make(args.gym_env)
     env.reward_type = args.reward_type
-    env.set_angle_goal = args.set_angle_goal
-    print("env:", args.gym_env)
-    print("env.set_angle_goal:", env.set_angle_goal)
+    env.set_additional_goal = args.set_additional_goal
+    logger.record_tabular("env", args.gym_env)
+    logger.record_tabular("env.set_additional_goal", env.set_additional_goal)
+    logger.record_tabular("env.reward_type", env.reward_type)
+
+    logger.dump_tabular()
 
     # Initialize brs engine. You also have to call reset_variables() after instance initialization
     if args.reward_type == 'ttr':
@@ -343,9 +357,7 @@ if __name__ == "__main__":
         # You have to assign the engine
         env.brsEngine = brsEngine
 
-    elif args.reward_type == 'hand_craft':
-        pass
-    elif args.reward_type == 'distance':
+    elif args.reward_type in ['hand_craft','distance','distance_lambda_10','distance_lambda_1','distance_lambda_0.1']:
         pass
     else:
         raise ValueError("wrong type of reward")
