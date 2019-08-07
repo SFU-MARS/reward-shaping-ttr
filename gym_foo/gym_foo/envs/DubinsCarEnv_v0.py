@@ -255,18 +255,22 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         # if angular_vel < self.action_space.low[1]:
         #     angular_vel = self.action_space.low[1]
 
-        linear_vel = action[0] + 0.5
+        linear_vel = action[0] + 0.3
         angular_vel = action[1]
 
         cmd_vel = Twist()
         cmd_vel.linear.x = linear_vel
+        cmd_vel.linear.z = 0
         cmd_vel.angular.z = angular_vel
         print("cmd_vel",cmd_vel)
 
         cur_state = ModelState()
-        # reset_state.model_name = "mobile_base"
         cur_state.model_name = "dubins_car"
         cur_state.twist = cmd_vel
+
+        cur_state.pose.position.x = 0
+        cur_state.pose.position.y = 0
+
         cur_state.reference_frame = "dubins_car"
         self.set_model_states(cur_state)
 

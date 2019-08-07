@@ -207,6 +207,11 @@ def learn(*,
     var_list = get_pi_trainable_variables("pi")
     vf_var_list = get_vf_trainable_variables("pi")
 
+    print("length of old_pi_var_list:", len(get_oldpi_trainable_variables("oldpi")))
+    print("length of pi_var_list:", len(var_list))
+    print("length of vf_var_list:", len(vf_var_list))
+
+
     vfadam = MpiAdam(vf_var_list)
 
     get_flat = U.GetFlat(var_list)
@@ -395,3 +400,6 @@ def get_vf_trainable_variables(scope):
 def get_pi_trainable_variables(scope):
     return [v for v in get_trainable_variables(scope) if 'pi' in v.name[len(scope):].split('/')]    
 
+# AMEND: added by xlv, no big deal
+def get_oldpi_trainable_variables(scope):
+    return [v for v in get_trainable_variables(scope) if 'oldpi' in v.name[len(scope):].split('/')]
