@@ -23,6 +23,8 @@ import rospy
 import time
 import copy
 
+from baselines import logger
+
 from brs_engine.PlanarQuad_brs_engine import *
 # from hector_uav_msgs.srv import EnableMotors
 
@@ -640,6 +642,10 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
 
         obsrv = [x, vx, z, vz, pitch, w] + discretized_laser_data
 
+        if any(np.isnan(np.array(obsrv))):
+            logger.record_tabular("found nan in observation:", obsrv)
+            obsrv = self.reset()
+
         return obsrv
 
     def reset(self):
@@ -804,7 +810,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
             delta_theta = obsrv[4] - GOAL_STATE[4]
 
             reward += -np.sqrt(delta_x ** 2 + delta_z ** 2 + 1.0 * delta_theta ** 2)
-        elif self.reward_type == 'distance_lambda_10:':
+        elif self.reward_type == 'distance_lambda_10':
             delta_x = obsrv[0] - GOAL_STATE[0]
             delta_z = obsrv[2] - GOAL_STATE[2]
             delta_theta = obsrv[4] - GOAL_STATE[4]
@@ -848,7 +854,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
             reward += self.collision_reward * 2
             done = True
             self.step_counter = 0
-
+        # maximum episode length allowed
         if self.step_counter >= 30:
             done = True
             self.step_counter = 0

@@ -22,7 +22,7 @@ def initialize():
     U.initialize()
 
 
-def ppo_eval(env, policy, timesteps_per_actorbatch, max_iters=0, stochastic=False):
+def ppo_eval(env, policy, timesteps_per_actorbatch, max_iters=0, stochastic=False, scatter_collect=False):
     pi = policy
     seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=stochastic)
 
@@ -40,6 +40,8 @@ def ppo_eval(env, policy, timesteps_per_actorbatch, max_iters=0, stochastic=Fals
     suc_counter = 0
     ep_counter = 0
 
+    trajs = []
+    dones = []
     while True:
         if max_iters and iters_so_far >= max_iters:
             break
@@ -78,7 +80,11 @@ def ppo_eval(env, policy, timesteps_per_actorbatch, max_iters=0, stochastic=Fals
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
 
-    return pi, ep_mean_lens, ep_mean_rews, suc_counter * 1.0 / ep_counter
+        if scatter_collect:
+            trajs.append(seg['ob'])
+            dones.append(seg['new'])
+
+    return pi, ep_mean_lens, ep_mean_rews, suc_counter * 1.0 / ep_counter, trajs, dones
 
 def ppo_learn(env, policy,
         timesteps_per_actorbatch,                       # timesteps per actor per update
@@ -126,6 +132,9 @@ def ppo_learn(env, policy,
 
     var_list = pi.get_trainable_variables()
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult], losses + [U.flatgrad(total_loss, var_list)])
+    # AMEND: added by xlv
+    lossandgrad_clip = U.function([ob, ac, atarg, ret, lrmult], losses + [U.flatgrad(total_loss, var_list, clip_norm=100.)])
+
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
 
     assign_old_eq_new = U.function([],[], updates=[tf.assign(oldv, newv)
@@ -158,6 +167,7 @@ def ppo_learn(env, policy,
     # added by xlv
     suc_counter = 0
     ep_counter  = 0
+    start_clip_grad = False
 
     while True:
         if callback:
@@ -213,7 +223,17 @@ def ppo_learn(env, policy,
         for _ in range(optim_epochs):
             losses = [] # list of tuples, each of which gives the loss for a minibatch
             for batch in d.iterate_once(optim_batchsize):
-                *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+                if start_clip_grad:
+                    *newlosses, g = lossandgrad_clip(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+                else:
+                    *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+                # print("newlosses:", newlosses)
+                # print("gradient:", g)
+                # print("type:", g.dtype)
+                if any(np.isnan(g)):
+                    cur_lrmult = cur_lrmult * 0.95
+                    start_clip_grad = True
+                    continue
                 adam.update(g, optim_stepsize * cur_lrmult)
                 losses.append(newlosses)
             logger.log(fmt_row(13, np.mean(losses, axis=0)))

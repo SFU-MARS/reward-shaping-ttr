@@ -104,14 +104,14 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
             logger.dump_tabular()
             if suc_percent > best_suc_percent:
                 best_suc_percent = suc_percent
-                best_pi = pi
+                best_pi = copy.deepcopy(pi)
             if suc_percent > 0.6:
                 perf_flag = True
             if not perf_flag:
                 # less timesteps_per_actorbatch to make eval faster.
-                _, _, eval_ep_mean_reward, eval_suc_percent = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
+                _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
             else:
-                _, _, eval_ep_mean_reward, eval_suc_percent = algorithm.ppo_eval(env, best_pi, timesteps_per_actorbatch//2,
+                _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, best_pi, timesteps_per_actorbatch//2,
                                                                                  max_iters=5, stochastic=False)
             eval_ppo_reward.extend(eval_ep_mean_reward)
             eval_suc_percents.append(eval_suc_percent)
@@ -156,148 +156,149 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
         return pi
 
     elif algorithm == deepq:
-        assert args.gym_env == "DubinsCarEnv_dqn-v0" or args.gym_env == "PlanarQuadEnv_dqn-v0"
-        # do something about dqn training
-        tmp_path = MODEL_DIR + '/ep'
-
-        continue_execution = False
-        resume_epoch = '200'
-        resume_path = tmp_path + resume_epoch
-        weights_path = resume_path + '.h5'
-        params_json = resume_path + '.json'
-
-        epochs = steps = updateTargetNetwork = explorationRate = minibatch_size = learnStart = learningRate= \
-        discountFactor = memorySize = network_inputs = network_outputs = network_structure = current_epoch = None
-
-        if not continue_execution:
-            # Each time we take a sample and update our weights it is called a mini-batch.
-            # Each time we run through the entire dataset, it's called an epoch.
-            epochs = 1000
-            steps = 1000
-            updateTargetNetwork = 10000
-            explorationRate = 1
-            minibatch_size = 128
-            learnStart = 64
-            learningRate = 0.00025
-            discountFactor = 0.99
-            memorySize = 1000000
-            network_inputs = env.state_dim + env.num_lasers
-            # network_outputs = 21
-            network_outputs = 25
-            network_structure = [300,300]
-            current_epoch = 0
-
-            deepQ = deepq.DeepQ(network_inputs, network_outputs, memorySize, discountFactor, learningRate, learnStart)
-            deepQ.initNetworks(network_structure)
-        else:
-            # Load weights and parameter info.
-            with open(params_json) as outfile:
-                d = json.load(outfile)
-                epochs = d.get('epochs')
-                steps = d.get('steps')
-                updateTargetNetwork = d.get('updateTargetNetwork')
-                explorationRate = d.get('explorationRate')
-                minibatch_size = d.get('minibatch_size')
-                learnStart = d.get('learnStart')
-                learningRate = d.get('learningRate')
-                discountFactor = d.get('discountFactor')
-                memorySize = d.get('memorySize')
-                network_inputs = d.get('network_inputs')
-                network_outputs = d.get('network_outputs')
-                network_structure = d.get('network_structure')
-                current_epoch = d.get('current_epoch')
-
-            deepQ = deepq.DeepQ(network_inputs, network_outputs, memorySize, discountFactor, learningRate, learnStart)
-            deepQ.initNetworks(network_structure)
-
-            deepQ.loadWeights(weights_path)
-
-        env._max_episode_steps = steps
-        last100Scores = [0] * 100
-        last100ScoresIndex = 0
-        last100Filled = False
-        stepCounter = 0
-        highest_reward = 0
-
-        start_time = time()
-
-        # start iterating from 'current epoch'.
-        for epoch in np.arange(current_epoch + 1, epochs + 1, 1):
-            observation = env.reset()
-            cumulated_reward = 0
-            done = False
-            episode_step = 0
-
-            # run until env returns done
-            while not done:
-                # env.render()
-                qValues = deepQ.getQValues(observation)
-
-                action = deepQ.selectAction(qValues, explorationRate)
-
-                newObservation, reward, done, suc, info = env.step(action)
-
-                cumulated_reward += reward
-                if highest_reward < cumulated_reward:
-                    highest_reward = cumulated_reward
-
-                deepQ.addMemory(observation, action, reward, newObservation, done)
-
-                if stepCounter >= learnStart:
-                    if stepCounter <= updateTargetNetwork:
-                        deepQ.learnOnMiniBatch(minibatch_size, False)
-                    else:
-                        deepQ.learnOnMiniBatch(minibatch_size, True)
-
-                observation = newObservation
-
-                if done:
-                    last100Scores[last100ScoresIndex] = episode_step
-                    last100ScoresIndex += 1
-                    if last100ScoresIndex >= 100:
-                        last100Filled = True
-                        last100ScoresIndex = 0
-                    if not last100Filled:
-                        print("EP " + str(epoch) + " - " + format(episode_step + 1) + "/" + str(
-                            steps) + " Episode steps   Exploration=" + str(round(explorationRate, 2)))
-                    else:
-                        m, s = divmod(int(time() - start_time), 60)
-                        h, m = divmod(m, 60)
-                        print("EP " + str(epoch) + " - " + format(episode_step + 1) + "/" + str(
-                            steps) + " Episode steps - last100 Steps : " + str(
-                            (sum(last100Scores) / len(last100Scores))) + " - Cumulated R: " + str(
-                            cumulated_reward) + "   Eps=" + str(
-                            round(explorationRate, 2)) + "     Time: %d:%02d:%02d" % (h, m, s))
-                        if epoch % 100 == 0:
-                            # save model weights and monitoring data every 100 epochs.
-                            deepQ.saveModel(tmp_path + str(epoch) + '.h5')
-                            # save simulation parameters.
-                            # convert from numpy int64 type to python int type for json serialization
-                            epoch = int(epoch)
-                            parameter_keys = ['epochs', 'steps', 'updateTargetNetwork', 'explorationRate',
-                                              'minibatch_size', 'learnStart', 'learningRate', 'discountFactor',
-                                              'memorySize', 'network_inputs', 'network_outputs', 'network_structure',
-                                              'current_epoch']
-                            parameter_values = [epochs, steps, updateTargetNetwork, explorationRate, minibatch_size,
-                                                learnStart, learningRate, discountFactor, memorySize, network_inputs,
-                                                network_outputs, network_structure, epoch]
-                            parameter_dictionary = dict(zip(parameter_keys, parameter_values))
-                            with open(tmp_path + str(epoch) + '.json', 'w') as outfile:
-                                json.dump(parameter_dictionary, outfile)
-
-                stepCounter += 1
-                if stepCounter % updateTargetNetwork == 0:
-                    deepQ.updateTargetNetwork()
-                    print("updating target network")
-
-                episode_step += 1
-
-            explorationRate *= 0.995  # epsilon decay
-            # explorationRate -= (2.0/epochs)
-            explorationRate = max(0.05, explorationRate)
-
-        env.close()
-        return 1
+        pass
+        # assert args.gym_env == "DubinsCarEnv_dqn-v0" or args.gym_env == "PlanarQuadEnv_dqn-v0"
+        # # do something about dqn training
+        # tmp_path = MODEL_DIR + '/ep'
+        #
+        # continue_execution = False
+        # resume_epoch = '200'
+        # resume_path = tmp_path + resume_epoch
+        # weights_path = resume_path + '.h5'
+        # params_json = resume_path + '.json'
+        #
+        # epochs = steps = updateTargetNetwork = explorationRate = minibatch_size = learnStart = learningRate= \
+        # discountFactor = memorySize = network_inputs = network_outputs = network_structure = current_epoch = None
+        #
+        # if not continue_execution:
+        #     # Each time we take a sample and update our weights it is called a mini-batch.
+        #     # Each time we run through the entire dataset, it's called an epoch.
+        #     epochs = 1000
+        #     steps = 1000
+        #     updateTargetNetwork = 10000
+        #     explorationRate = 1
+        #     minibatch_size = 128
+        #     learnStart = 64
+        #     learningRate = 0.00025
+        #     discountFactor = 0.99
+        #     memorySize = 1000000
+        #     network_inputs = env.state_dim + env.num_lasers
+        #     # network_outputs = 21
+        #     network_outputs = 25
+        #     network_structure = [300,300]
+        #     current_epoch = 0
+        #
+        #     deepQ = deepq.DeepQ(network_inputs, network_outputs, memorySize, discountFactor, learningRate, learnStart)
+        #     deepQ.initNetworks(network_structure)
+        # else:
+        #     # Load weights and parameter info.
+        #     with open(params_json) as outfile:
+        #         d = json.load(outfile)
+        #         epochs = d.get('epochs')
+        #         steps = d.get('steps')
+        #         updateTargetNetwork = d.get('updateTargetNetwork')
+        #         explorationRate = d.get('explorationRate')
+        #         minibatch_size = d.get('minibatch_size')
+        #         learnStart = d.get('learnStart')
+        #         learningRate = d.get('learningRate')
+        #         discountFactor = d.get('discountFactor')
+        #         memorySize = d.get('memorySize')
+        #         network_inputs = d.get('network_inputs')
+        #         network_outputs = d.get('network_outputs')
+        #         network_structure = d.get('network_structure')
+        #         current_epoch = d.get('current_epoch')
+        #
+        #     deepQ = deepq.DeepQ(network_inputs, network_outputs, memorySize, discountFactor, learningRate, learnStart)
+        #     deepQ.initNetworks(network_structure)
+        #
+        #     deepQ.loadWeights(weights_path)
+        #
+        # env._max_episode_steps = steps
+        # last100Scores = [0] * 100
+        # last100ScoresIndex = 0
+        # last100Filled = False
+        # stepCounter = 0
+        # highest_reward = 0
+        #
+        # start_time = time()
+        #
+        # # start iterating from 'current epoch'.
+        # for epoch in np.arange(current_epoch + 1, epochs + 1, 1):
+        #     observation = env.reset()
+        #     cumulated_reward = 0
+        #     done = False
+        #     episode_step = 0
+        #
+        #     # run until env returns done
+        #     while not done:
+        #         # env.render()
+        #         qValues = deepQ.getQValues(observation)
+        #
+        #         action = deepQ.selectAction(qValues, explorationRate)
+        #
+        #         newObservation, reward, done, suc, info = env.step(action)
+        #
+        #         cumulated_reward += reward
+        #         if highest_reward < cumulated_reward:
+        #             highest_reward = cumulated_reward
+        #
+        #         deepQ.addMemory(observation, action, reward, newObservation, done)
+        #
+        #         if stepCounter >= learnStart:
+        #             if stepCounter <= updateTargetNetwork:
+        #                 deepQ.learnOnMiniBatch(minibatch_size, False)
+        #             else:
+        #                 deepQ.learnOnMiniBatch(minibatch_size, True)
+        #
+        #         observation = newObservation
+        #
+        #         if done:
+        #             last100Scores[last100ScoresIndex] = episode_step
+        #             last100ScoresIndex += 1
+        #             if last100ScoresIndex >= 100:
+        #                 last100Filled = True
+        #                 last100ScoresIndex = 0
+        #             if not last100Filled:
+        #                 print("EP " + str(epoch) + " - " + format(episode_step + 1) + "/" + str(
+        #                     steps) + " Episode steps   Exploration=" + str(round(explorationRate, 2)))
+        #             else:
+        #                 m, s = divmod(int(time() - start_time), 60)
+        #                 h, m = divmod(m, 60)
+        #                 print("EP " + str(epoch) + " - " + format(episode_step + 1) + "/" + str(
+        #                     steps) + " Episode steps - last100 Steps : " + str(
+        #                     (sum(last100Scores) / len(last100Scores))) + " - Cumulated R: " + str(
+        #                     cumulated_reward) + "   Eps=" + str(
+        #                     round(explorationRate, 2)) + "     Time: %d:%02d:%02d" % (h, m, s))
+        #                 if epoch % 100 == 0:
+        #                     # save model weights and monitoring data every 100 epochs.
+        #                     deepQ.saveModel(tmp_path + str(epoch) + '.h5')
+        #                     # save simulation parameters.
+        #                     # convert from numpy int64 type to python int type for json serialization
+        #                     epoch = int(epoch)
+        #                     parameter_keys = ['epochs', 'steps', 'updateTargetNetwork', 'explorationRate',
+        #                                       'minibatch_size', 'learnStart', 'learningRate', 'discountFactor',
+        #                                       'memorySize', 'network_inputs', 'network_outputs', 'network_structure',
+        #                                       'current_epoch']
+        #                     parameter_values = [epochs, steps, updateTargetNetwork, explorationRate, minibatch_size,
+        #                                         learnStart, learningRate, discountFactor, memorySize, network_inputs,
+        #                                         network_outputs, network_structure, epoch]
+        #                     parameter_dictionary = dict(zip(parameter_keys, parameter_values))
+        #                     with open(tmp_path + str(epoch) + '.json', 'w') as outfile:
+        #                         json.dump(parameter_dictionary, outfile)
+        #
+        #         stepCounter += 1
+        #         if stepCounter % updateTargetNetwork == 0:
+        #             deepQ.updateTargetNetwork()
+        #             print("updating target network")
+        #
+        #         episode_step += 1
+        #
+        #     explorationRate *= 0.995  # epsilon decay
+        #     # explorationRate -= (2.0/epochs)
+        #     explorationRate = max(0.05, explorationRate)
+        #
+        # env.close()
+        # return 1
 
     else:
         raise ValueError("Please input an valid algorithm")
@@ -306,10 +307,10 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
 if __name__ == "__main__":
     # ----- path setting ------
     parser = argparse.ArgumentParser()
-    parser.add_argument("--gym_env", help="which gym environment to use.", type=str, default='DubinsCarEnv-v0')
+    parser.add_argument("--gym_env", help="which gym environment to use.", type=str, default='PlanarQuadEnv-v0')
     parser.add_argument("--reward_type", help="which type of reward to use.", type=str, default='hand_craft')
     parser.add_argument("--algo", help="which type of algorithm to use.", type=str, default='ppo')
-    parser.add_argument("--set_additional_goal", type=str, default="None")
+    parser.add_argument("--set_additional_goal", type=str, default="angle")
     args = parser.parse_args()
 
     RUN_DIR = MODEL_DIR = FIGURE_DIR = RESULT_DIR = None
@@ -334,6 +335,7 @@ if __name__ == "__main__":
     env = gym.make(args.gym_env)
     env.reward_type = args.reward_type
     env.set_additional_goal = args.set_additional_goal
+    logger.record_tabular("algo", args.algo)
     logger.record_tabular("env", args.gym_env)
     logger.record_tabular("env.set_additional_goal", env.set_additional_goal)
     logger.record_tabular("env.reward_type", env.reward_type)
@@ -373,9 +375,9 @@ if __name__ == "__main__":
         # Start to train the policy
         trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json)
         trained_policy.save_model(MODEL_DIR)
-
-        # LOAD_DIR = os.environ['PROJ_HOME'] + '/runs_reborn/PlanarQuadEnv-v0_ttr_02-Apr-2019_22-02-55/model'
-        # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, load=True, loadpath=LOAD_DIR, loaditer=5)
+        #
+        # LOAD_DIR = os.environ['PROJ_HOME'] + '/runs_icra/PlanarQuadEnv-v0_hand_craft_ppo_16-Aug-2019_11-37-22/model'
+        # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, load=True, loadpath=LOAD_DIR, loaditer=18)
 
     elif args.algo == "dqn":
         # Make necessary directories

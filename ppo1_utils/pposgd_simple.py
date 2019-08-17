@@ -40,6 +40,14 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
+
+        # print("ob:", ob)
+        # print("ac:", ac)
+        # print("vpred:", vpred)
+        # print("pi:", tf.trainable_variables())
+        # print("pi vars:", pi.print_model_details())
+
+
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value

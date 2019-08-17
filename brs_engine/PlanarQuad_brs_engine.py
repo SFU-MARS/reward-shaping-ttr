@@ -20,11 +20,12 @@ W_IDX = 5
 T1_IDX = 0
 T2_IDX = 1
 
-# GOAL_STATE = np.array([4., 0., 4., 0., 0.75, 0.])
+# ok. Mo said that specific angle is acceptable.
+GOAL_STATE = np.array([4., 0., 4., 0., 0.75, 0.])
 # START_STATE = np.array([-3.182, 0., 3., 0., 0., 0.])
 
 # we can not let angle goal to specific value only because we assume it will be in specific task. it should be hovering at zero angle with some threshold, like [-30', 30']
-GOAL_STATE = np.array([4., 0., 4., 0., 0., 0.])
+# GOAL_STATE = np.array([4., 0., 4., 0., 0., 0.])
 class Quadrotor_brs_engine(object):
     # Starts and sets up the MATLAB engine that runs in the background.
     def __init__(self):
@@ -46,8 +47,9 @@ class Quadrotor_brs_engine(object):
 
         self.goal_state = matlab.double([[GOAL_STATE[0]],[GOAL_STATE[1]],[GOAL_STATE[2]],[GOAL_STATE[3]],[GOAL_STATE[4]],[GOAL_STATE[5]]])
         self.goal_radius = matlab.double([[0.5],[0.2],[0.5],[0.2],[np.pi/3],[0.25]])
-         # self.goal_radius = matlab.double([[1.0],[0.5],[1.0],[0.5],[np.pi/3],[0.25]])
+        # self.goal_radius = matlab.double([[1.0],[0.5],[1.0],[0.5],[np.pi/3],[0.25]])
 
+        # Actually here the angular velocity range [-pi/2, pi/2] is not enough. But since we don't need it in this navigation task, it's ok.
         self.gMin = matlab.double([[-5.], [-2.], [-5.], [-2.], [-np.pi], [-np.pi/2]])
         self.gMax = matlab.double([[5.], [2.], [5.], [2.], [np.pi], [np.pi/2]])
         self.nPoints = nPoints

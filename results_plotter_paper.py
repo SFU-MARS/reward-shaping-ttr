@@ -3,6 +3,7 @@
 import pickle
 import seaborn as sns; sns.set()
 import matplotlib.pyplot as plt
+# plt.rcParams.update({'font.size': 30})
 import os,sys
 import argparse
 import pandas as pd

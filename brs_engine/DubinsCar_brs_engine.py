@@ -25,8 +25,9 @@ W_IDX = 0
 # ACCEL_IDX = 0
 # KAPPA_IDX = 1
 
-GOAL_STATE = np.array([3.459, 3.626, 0.])
-START_STATE = np.array([-0.182, -3.339, 0.])
+# GOAL_STATE = np.array([3.459, 3.626, 0.])
+GOAL_STATE = np.array([3.5, 3.6, 1.5])
+# START_STATE = np.array([-0.182, -3.339, 0.])
 
 
 class DubinsCar_brs_engine(object):
@@ -48,14 +49,14 @@ class DubinsCar_brs_engine(object):
 
         self.state_dim = len(GOAL_STATE)
 
-        self.goal_pos_tolerance = 1.0  # How many m away can you be from the goal and still finish?
-        self.goal_theta_tolerance = 1.0  # How many radians different can you be from the goal theta and still finish?
-        # self.goal_vel_tolerance = 0.2  # How many m/s away can you be from the goal and still finish?
+        # self.goal_pos_tolerance = 1.0  # How many m away can you be from the goal and still finish?
+        # self.goal_theta_tolerance = 1.0  # How many radians different can you be from the goal theta and still finish?
+        # # self.goal_vel_tolerance = 0.2  # How many m/s away can you be from the goal and still finish?
 
         self.goal_state = matlab.double([[GOAL_STATE[0]], [GOAL_STATE[1]], [GOAL_STATE[2]]])
-        self.goal_radius = matlab.double([[self.goal_pos_tolerance],
-                                          [self.goal_pos_tolerance],
-                                          [self.goal_theta_tolerance]])
+        self.goal_radius = matlab.double([[0.5],
+                                          [0.5],
+                                          [np.pi/3]])
 
         self.gMin = matlab.double([[-5.0], [-5.0], [-np.pi]])
         self.gMax = matlab.double([[5.0], [5.0], [np.pi]])
@@ -189,3 +190,7 @@ class DubinsCar_brs_engine(object):
     def evaluate_ttr(self, states):
         return self.ttr_check((states[:, X_IDX], states[:, Y_IDX], states[:, THETA_IDX]))[0]
         # return self.ttr_check(states[:, X_IDX], states[:, Y_IDX], grid=False)
+
+if __name__ == "__main__":
+    dubin_engine = DubinsCar_brs_engine()
+    dubin_engine.reset_variables()

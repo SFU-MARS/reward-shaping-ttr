@@ -96,6 +96,7 @@ if __name__ == "__main__":
     maybe_mkdir(FIGURE_DIR)
     maybe_mkdir(RESULT_DIR)
 
+    print('args:',args)
     model = TRPO(MlpPolicy, env, verbose=1, **args)
     # 600 epochs, each epoch 1024 steps; every 30 epochs, do an evaluation.
     model.learn(total_timesteps=1024*601)

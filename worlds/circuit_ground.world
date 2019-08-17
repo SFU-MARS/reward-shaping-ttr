@@ -121,6 +121,14 @@
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
+
+        <link name='cube_4'>
+          <pose frame=''>0 3.5 0.35 0 -0 0</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+
         <link name='start'>
           <pose frame=''>-0.222404 -3.27274 0 0 -0 0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
@@ -330,6 +338,48 @@
         <enable_wind>0</enable_wind>
         <kinematic>0</kinematic>
       </link>
+
+      <link name='cube_4'>
+        <pose frame=''>0 3.5 0.35 0 -0 0</pose>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.7 0.7 0.7</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.7 0.7 0.7</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Wood</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+
+
       <link name='wall_0'>
         <pose frame=''>-0.133521 5.00434 1 0 -0 0</pose>
         <collision name='collision'>
