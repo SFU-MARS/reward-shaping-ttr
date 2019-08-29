@@ -5,15 +5,21 @@ import numpy as np
 import gazebo_env
 from utils import *
 
+from utils.utils import *
+
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Twist, Pose, Pose2D
 from sensor_msgs.msg import LaserScan
 
 from std_srvs.srv import Empty
 from gazebo_msgs.srv import GetModelState, SetModelState
+from gazebo_msgs.msg import ContactsState
 
 import rospy
-
+import sys
+print(sys.path)
+import tf
+print(tf.__file__)
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # need to be compatitable with model.sdf and world.sdf for custom setting
@@ -98,6 +104,12 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
             if min_range > laser_data.ranges[idx] > 0:
                 return True
         return False
+    # def _in_obst(self, contact_data):
+    #     if len(contact_data.states) != 0:
+    #         if contact_data.states[0].collision1_name != "" and contact_data.states[0].collision2_name != "":
+    #             return True
+    #     else:
+    #             return False
 
     def _in_goal(self, state):
 
@@ -295,10 +307,14 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
         # print("action:", action)
         # action[0] + 0.3 if action[0] > 0 else action[0] - 0.3
-        # [-2, 2] --> [-0.5, 2]
-        linear_vel = -0.5 + (2 - (-0.5)) * (action[0] - (-2)) / (2 - (-2))
-        # [-2,2] --> [-0.3, 0.3]
-        angular_vel = -0.3 + (0.3 - (-0.3)) * (action[1] - (-2)) / (2 - (-2))
+
+
+        # [-2, 2] --> [-0.8, 2]
+        linear_vel = -0.8 + (2 - (-0.8)) * (action[0] - (-2)) / (2 - (-2))
+        # [-2,2] --> [-0.8, 0.8]
+        # For ddpg, use this line below
+        # angular_vel = -0.8 + (0.8 - (-0.8)) * (action[1] - (-2)) / (2 - (-2))
+        angular_vel = action[1]
 
         vel_cmd = Twist()
         vel_cmd.linear.x = linear_vel
@@ -310,13 +326,14 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
         laser_data = None
         dynamic_data = None
-
+        # contact_data = None
         while laser_data is None and dynamic_data is None:
             try:
                 laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
                 # dynamic_data = rospy.wait_for_message('/gazebo/model_states', ModelStates)
                 rospy.wait_for_service("/gazebo/get_model_state")
                 try:
+                    # contact_data = rospy.wait_for_message('/gazebo_ros_bumper', ContactsState, timeout=50)
                     dynamic_data = self.get_model_states(model_name="mobile_base")
                     # dynamic_data = self.get_model_states(model_name="dubins_car")
                 except rospy.ServiceException as e:
@@ -380,6 +397,12 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
             reward += self.collision_reward
             done = True
             self.step_counter = 0
+
+        # temporary change for ddpg only. For PPO, use things above.
+        # if self._in_obst(contact_data):
+        #     reward += self.collision_reward
+        #     done = True
+        #     self.step_counter = 0
 
         # 2. In the neighbor of goal state, done is True as well. Only considering velocity and pos
         if self._in_goal(np.array(obsrv[:5])):

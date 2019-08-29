@@ -43,9 +43,9 @@ if __name__ == "__main__":
         else:
             cur_reward_type = cur_reward_type.upper()
 
-        if cur_reward_type == 'TTR' and path.split('_')[-3] == 'ppo' and len(cur_reward_type) < 20:
-            tmp = cur_eval_suc
-            cur_eval_suc.extend([tmp[-1]]*(20-len(tmp)+1))
+        # if cur_reward_type == 'TTR' and path.split('_')[-3] == 'ppo' and len(cur_reward_type) < 20:
+        #     tmp = cur_eval_suc
+        #     cur_eval_suc.extend([tmp[-1]]*(20-len(tmp)+1))
         for idx in range(len(cur_eval_suc)):
             all_eval_sucs.append(cur_eval_suc[idx])
             all_reward_types.append(cur_reward_type)
@@ -61,8 +61,12 @@ if __name__ == "__main__":
 
     # fmri = sns.load_dataset("fmri")
     # print("fmri", fmri)
-    ax = sns.lineplot(x="timesteps(*30k)", y="eval success percent", hue='reward_type', data=df)
+    ax = sns.lineplot(x="timesteps(*30k)", y="eval success percent", hue='reward_type', data=df, ci=None)
+    if args['title'] == "Quadrotor_PPO":
+        ax.axhline(y=0.940789, color='black', ls='--')
+    ax.set_ylim(0,1.1)
     ax.set_title(args['title'])
+    ax.legend(loc='lower right')
     ax.grid(True)
     # ax = sns.swarmplot(x="timesteps(*30k)", y="eval success percent", hue='reward_type', data=df)
     plt.show()

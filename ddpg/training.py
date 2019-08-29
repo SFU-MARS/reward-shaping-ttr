@@ -15,7 +15,7 @@ from utils.plotting_performance import *
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
+    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps,batch_size, memory,
     tau=0.01, eval_env=None, param_noise_adaption_interval=50, **kwargs):
 
     # print("kwargs:",kwargs)
@@ -41,11 +41,12 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
     step = 0
     episode = 0
+
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
+
     with U.single_threaded_session() as sess:
         # Prepare everything.
-
         # --------------- AMEND: For saving and restoring the model. added by xlv ------------------
         if kwargs['restore'] == True and kwargs['restore_path'] != None:
             logger.info("Restoring from saved model")
@@ -74,8 +75,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
         epoch_episode_rewards = []
         epoch_episode_steps = []
-        epoch_episode_eval_rewards = []
-        epoch_episode_eval_steps = []
+
+
         epoch_start_time = time.time()
         epoch_actions = []
         epoch_qs = []
@@ -84,14 +85,16 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         # every 30 epochs plot statistics and save it.
         nb_epochs_unit = 30
         ddpg_rewards = []
+        eval_ddpg_rewards = []
+
         ddpg_suc_percents = []
         eval_suc_percents = []
-        eval_ddpg_rewards = []
+
+        # ---- AMEND: added by xlv to calculate success percent -----
+        suc_num = 0
+        episode_num = 0
+        # -----------------------------------------------------------
         for epoch in range(nb_epochs):
-            # ---- AMEND: added by xlv to calculate success percent -----
-            suc_num = 0
-            episode_num = 0
-            # ----------------------------------------------------------
             for cycle in range(nb_epoch_cycles):
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
@@ -188,11 +191,11 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['rollout/episodes'] = epoch_episodes
             combined_stats['rollout/actions_std'] = np.std(epoch_actions)
             # Evaluation statistics.
-            if eval_env is not None:
-                combined_stats['eval/return'] = eval_episode_rewards
-                combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-                combined_stats['eval/Q'] = eval_qs
-                combined_stats['eval/episodes'] = len(eval_episode_rewards)
+            # if eval_env is not None:
+            #     combined_stats['eval/return'] = eval_episode_rewards
+            #     combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
+            #     combined_stats['eval/Q'] = eval_qs
+            #     combined_stats['eval/episodes'] = len(eval_episode_rewards)
             def as_scalar(x):
                 if isinstance(x, np.ndarray):
                     assert x.size == 1
@@ -225,38 +228,45 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             ddpg_rewards.append(np.mean(episode_rewards_history))
             if (epoch + 1) % nb_epochs_unit == 0:
                 ddpg_suc_percents.append(suc_num / episode_num)
-                # ---------- Evaluate for 5 iters, each iter with 5 cycles * 100 timesteps = 500 timesteps ~ 512 ppo timesteps ------------
+                # ---------- Evaluate for 5 iters -----------------------
                 nb_eval_epochs = 5
-                eval_cycles = 5
+                nb_eval_epoch_cycles = 5
                 eval_episode_num = 0
                 eval_suc_num = 0
 
+                eval_episode_reward = 0
+                eval_episode_step   = 0
 
+                eval_epoch_episode_rewards = []
+                eval_epoch_episode_steps   = []
                 for i_epoch in range(nb_eval_epochs):
                     logger.log("********** Start Evaluation. Iteration %i ************" % i_epoch)
-                    for i_cycle in range(eval_cycles):
-                        eval_episode_rewards = []
-                        eval_episode_reward = 0.
-                        for t_rollout in range(nb_eval_steps):
+                    for i_cycle in range(nb_eval_epoch_cycles):
+                        for t_rollout in range(nb_rollout_steps):
                             eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
+                            assert eval_action.shape == env.action_space.shape
                             eval_obs, eval_r, eval_done, eval_suc, eval_info = env.step(
                                 max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+
                             eval_episode_reward += eval_r
+                            eval_episode_step += 1
                             if eval_done:
                                 eval_obs = env.reset()
-                                eval_episode_rewards.append(eval_episode_reward)
+                                eval_epoch_episode_rewards.append(eval_episode_reward)
                                 eval_episode_rewards_history.append(eval_episode_reward)
-                                eval_episode_reward = 0.
+                                eval_epoch_episode_steps.append(eval_episode_step)
+                                eval_episode_reward = 0
+                                eval_episode_step = 0
 
                                 eval_episode_num += 1
                                 if eval_suc:
                                     eval_suc_num += 1
-                    logger.record_tabular("Eval_EpRewMean", np.mean(eval_episode_rewards))
-                    logger.record_tabular("Eval_EpSucPercent", eval_suc_num / eval_episode_num)
+                    logger.record_tabular("Eval_EpRewMean", np.mean(eval_episode_rewards_history))
                     logger.record_tabular("Eval_EpNumUntilNow", eval_episode_num)
                     logger.record_tabular("Eval_EpNumSuc", eval_suc_num)
+                    logger.record_tabular("Eval_EpSucPercent", eval_suc_num / eval_episode_num)
                     logger.dump_tabular()
-                    eval_ddpg_rewards.append(np.mean(eval_episode_rewards))
+                    eval_ddpg_rewards.append(np.mean(eval_episode_rewards_history))
                 eval_suc_percents.append(eval_suc_num / eval_episode_num)
                 # ----------------------------------------------------------------------------------------------
                 # --------------------- plotting and saving -------------------------

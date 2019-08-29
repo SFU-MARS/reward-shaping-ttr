@@ -77,8 +77,10 @@ class MlpPolicy(object):
         return []
 
     def save_model(self, dirname, iteration=None):
-        if iteration is not None:
+        if iteration is not None and iteration != 'best':
             dirname = os.path.join(dirname, 'iter_%d' % iteration)
+        elif iteration == 'best':
+            dirname = os.path.join(dirname, 'best_model_so_far')
         else:
             dirname = os.path.join(dirname, 'trained_model')
 
@@ -87,8 +89,10 @@ class MlpPolicy(object):
         print('Saved!')
 
     def load_model(self, dirname, iteration=None):
-        if iteration is not None:
+        if iteration is not None and iteration != 'best':
             dirname = os.path.join(dirname, 'iter_%d' % iteration)
+        elif iteration == 'best':
+            dirname = os.path.join(dirname, 'best_model_so_far')
         else:
             dirname = os.path.join(dirname, 'trained_model')
         

@@ -469,6 +469,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         self.action_dim = 2
 
         self.goal_pos_tolerance = 1.5
+        # self.goal_pos_tolerance = 0.5
         self.goal_vel_limit = 0.25
         self.goal_phi_limit = np.pi / 6.
         self.pre_obsrv = None
@@ -792,6 +793,7 @@ class PlanarQuadEnv_v0(gazebo_env.GazeboEnv):
         elif self.reward_type == 'ttr' and self.brsEngine is not None:
             # Notice z-axis ttr space is defined from (-5,5), in gazebo it's in (0,10), so you need -5 when you want correct ttr reward
             ttr_obsrv = copy.deepcopy(obsrv)
+            # because in brs_engine, z pos is defined as [-5,5]. But here, z pos is defined as [0,10]
             ttr_obsrv[2] = ttr_obsrv[2] - 5
             ttr = self.brsEngine.evaluate_ttr(np.reshape(ttr_obsrv[:6], (1, -1)))
             reward += -ttr

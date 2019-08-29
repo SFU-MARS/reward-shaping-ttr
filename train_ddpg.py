@@ -138,8 +138,10 @@ def parse_args():
     parser.add_argument('--clip-norm', type=float, default=None)
     parser.add_argument('--nb-epochs', type=int, default=600)  # with default settings, perform 1M steps total
     # AMEND: change cycles to 10 to make it faster. original it's 20
+    # AMEND: for simple car, adjust it to 5, then increase nb_rollout_steps to 200
     parser.add_argument('--nb-epoch-cycles', type=int, default=10)
     parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
+    # actually, nb-eval_steps is not used anywhere
     parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
@@ -149,11 +151,12 @@ def parse_args():
 
     # AMEND: special argument added by xlv
     parser.add_argument('--reward_type', type=str, default='ttr')
-    parser.add_argument('--set_additional_goal', type=str, default='vel')
+    parser.add_argument('--set_additional_goal', type=str, default='angle')
     parser.add_argument('--algo', type=str, default='ddpg')
     boolean_flag(parser, 'restore', default=False)
     parser.add_argument('--restore_path', type=str, default=None)
     args = parser.parse_args()
+
 
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters
@@ -166,6 +169,10 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+    # print(args)
+    if args['env_id'] == 'DubinsCarEnv-v0':
+        args['nb_epoch_cycles'] == 5
+        args['nb_rollout_steps'] = 200
     print(args)
     # ---------------------- PATH SETTING ----------------------------
     RUN_DIR = MODEL_DIR = FIGURE_DIR = RESULT_DIR = None

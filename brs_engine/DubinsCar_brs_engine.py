@@ -26,7 +26,8 @@ W_IDX = 0
 # KAPPA_IDX = 1
 
 # GOAL_STATE = np.array([3.459, 3.626, 0.])
-GOAL_STATE = np.array([3.5, 3.6, 1.5])
+# GOAL_STATE = np.array([3.5, 3.6, -0.75])
+GOAL_STATE = np.array([3.5, 3.6, 0.75])
 # START_STATE = np.array([-0.182, -3.339, 0.])
 
 
@@ -54,10 +55,11 @@ class DubinsCar_brs_engine(object):
         # # self.goal_vel_tolerance = 0.2  # How many m/s away can you be from the goal and still finish?
 
         self.goal_state = matlab.double([[GOAL_STATE[0]], [GOAL_STATE[1]], [GOAL_STATE[2]]])
-        self.goal_radius = matlab.double([[0.5],
-                                          [0.5],
-                                          [np.pi/3]])
+        # self.goal_radius = matlab.double([[0.5],
+        #                                   [0.5],
+        #                                   [np.pi/3]])
 
+        self.goal_radius = matlab.double([[0.5], [0.5], [np.pi/18]])
         self.gMin = matlab.double([[-5.0], [-5.0], [-np.pi]])
         self.gMax = matlab.double([[5.0], [5.0], [np.pi]])
         self.nPoints = nPoints

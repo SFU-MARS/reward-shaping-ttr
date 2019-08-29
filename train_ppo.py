@@ -20,11 +20,12 @@ import pickle
 import gazebo_env
 import copy
 
+import tensorflow as tf
 
-def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None):
+def train(env, algorithm, args, params=None, load=False, loadpath=None, loaditer=None, save_obs=False):
 
     if algorithm == ppo:
-        assert args.gym_env == "DubinsCarEnv-v0" or args.gym_env == "PlanarQuadEnv-v0"
+        assert args['gym_env'] == "DubinsCarEnv-v0" or args['gym_env'] == "PlanarQuadEnv-v0"
 
         # Initialize policy
         ppo.create_session()
@@ -35,11 +36,11 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
             # load trained policy
             pi = init_policy
             pi.load_model(loadpath, iteration=loaditer)
-            pi.save_model(MODEL_DIR, iteration=0)
+            pi.save_model(args['MODEL_DIR'], iteration=0)
         else:
             # init policy
             pi = init_policy
-            pi.save_model(MODEL_DIR, iteration=0)
+            pi.save_model(args['MODEL_DIR'], iteration=0)
 
         # init params
         with open(params) as params_file:
@@ -64,7 +65,6 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
         wall_clock_time = list()
 
         best_suc_percent = 0
-        best_pi = None
         perf_flag = False
 
         eval_ppo_reward = list()
@@ -80,7 +80,7 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
             pi, ep_mean_length, ep_mean_reward, suc_percent = algorithm.ppo_learn(env=env, policy=pi, timesteps_per_actorbatch=timesteps_per_actorbatch,
                                                                      clip_param=clip_param, entcoeff=entcoeff, optim_epochs=optim_epochs,
                                                                      optim_stepsize=optim_stepsize, optim_batchsize=optim_batchsize,
-                                                                     gamma=gamma, lam=lam, max_iters=max_iters, schedule='constant')
+                                                                     gamma=gamma, lam=lam, max_iters=max_iters, schedule='constant', save_obs=save_obs)
 
             ppo_length.extend(ep_mean_length)
             ppo_reward.extend(ep_mean_reward)
@@ -90,56 +90,59 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
             # overall_perf.append(perf_metric)
             # print('[Overall Iter %d]: perf_metric = %.2f' % (i, perf_metric))
 
-            pi.save_model(MODEL_DIR, iteration=i)
+            pi.save_model(args['MODEL_DIR'], iteration=i)
             plot_performance(range(len(ppo_reward)), ppo_reward, ylabel=r'avg reward per ppo-learning step',
-                             xlabel='ppo iteration', figfile=os.path.join(FIGURE_DIR, 'ppo_reward'), title='TRAIN')
+                             xlabel='ppo iteration', figfile=os.path.join(args['FIGURE_DIR'], 'ppo_reward'), title='TRAIN')
             plot_performance(range(len(suc_percents)), suc_percents,
                              ylabel=r'overall success percentage per algorithm step',
-                             xlabel='algorithm iteration', figfile=os.path.join(FIGURE_DIR, 'success_percent'), title="TRAIN")
+                             xlabel='algorithm iteration', figfile=os.path.join(args['FIGURE_DIR'], 'success_percent'), title="TRAIN")
 
             # --- for plotting evaluation perf on success rate using early stopping trick ---
             logger.record_tabular('suc_percent', suc_percent)
             logger.record_tabular('best_suc_percent', best_suc_percent)
             logger.record_tabular('perf_flag', perf_flag)
             logger.dump_tabular()
-            if suc_percent > best_suc_percent:
+
+            if suc_percent >= best_suc_percent:
                 best_suc_percent = suc_percent
-                best_pi = copy.deepcopy(pi)
+                pi.save_model(args['MODEL_DIR'], iteration='best')
             if suc_percent > 0.6:
                 perf_flag = True
-            if not perf_flag:
+            if not perf_flag or env.reward_type != 'ttr':
                 # less timesteps_per_actorbatch to make eval faster.
                 _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
             else:
-                _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, best_pi, timesteps_per_actorbatch//2,
-                                                                                 max_iters=5, stochastic=False)
+
+                pi.load_model(args['MODEL_DIR'], iteration='best')
+                _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
+
             eval_ppo_reward.extend(eval_ep_mean_reward)
             eval_suc_percents.append(eval_suc_percent)
 
             plot_performance(range(len(eval_ppo_reward)), eval_ppo_reward, ylabel=r'avg reward per ppo-eval step',
-                             xlabel='ppo iteration', figfile=os.path.join(FIGURE_DIR, 'eval_ppo_reward'), title='EVAL')
+                             xlabel='ppo iteration', figfile=os.path.join(args['FIGURE_DIR'], 'eval_ppo_reward'), title='EVAL')
             plot_performance(range(len(eval_suc_percents)), eval_suc_percents,
                              ylabel=r'overall eval success percentage per algorithm step',
-                             xlabel='algorithm iteration', figfile=os.path.join(FIGURE_DIR, 'eval_success_percent'),
+                             xlabel='algorithm iteration', figfile=os.path.join(args['FIGURE_DIR'], 'eval_success_percent'),
                              title="EVAL")
             # -------------------------------------------------------------------------------
 
 
 
             # save data which is accumulated UNTIL iter i
-            with open(RESULT_DIR + '/ppo_length_'+'iter_'+str(i)+'.pickle','wb') as f1:
+            with open(args['RESULT_DIR'] + '/ppo_length_'+'iter_'+str(i)+'.pickle','wb') as f1:
                 pickle.dump(ppo_length, f1)
-            with open(RESULT_DIR + '/ppo_reward_'+'iter_'+str(i)+'.pickle','wb') as f2:
+            with open(args['RESULT_DIR'] + '/ppo_reward_'+'iter_'+str(i)+'.pickle','wb') as f2:
                 pickle.dump(ppo_reward, f2)
-            with open(RESULT_DIR + '/success_percent_' + 'iter_' + str(i) + '.pickle', 'wb') as fs:
+            with open(args['RESULT_DIR'] + '/success_percent_' + 'iter_' + str(i) + '.pickle', 'wb') as fs:
                 pickle.dump(suc_percents, fs)
-            with open(RESULT_DIR + '/wall_clock_time_' + 'iter_' + str(i) + '.pickle', 'wb') as ft:
+            with open(args['RESULT_DIR'] + '/wall_clock_time_' + 'iter_' + str(i) + '.pickle', 'wb') as ft:
                 pickle.dump(wall_clock_time, ft)
 
             # save evaluation data accumulated until iter i
-            with open(RESULT_DIR + '/eval_ppo_reward_' + 'iter_' +str(i) + '.pickle','wb') as f_er:
+            with open(args['RESULT_DIR'] + '/eval_ppo_reward_' + 'iter_' +str(i) + '.pickle','wb') as f_er:
                 pickle.dump(eval_ppo_reward, f_er)
-            with open(RESULT_DIR + '/eval_success_percent_' + 'iter_' + str(i) + '.pickle', 'wb') as f_es:
+            with open(args['RESULT_DIR'] + '/eval_success_percent_' + 'iter_' + str(i) + '.pickle', 'wb') as f_es:
                 pickle.dump(eval_suc_percents, f_es)
 
             # Incrementing our algorithm's loop counter
@@ -305,89 +308,96 @@ def train(env, algorithm, params=None, load=False, loadpath=None, loaditer=None)
 
 
 if __name__ == "__main__":
-    # ----- path setting ------
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--gym_env", help="which gym environment to use.", type=str, default='PlanarQuadEnv-v0')
-    parser.add_argument("--reward_type", help="which type of reward to use.", type=str, default='hand_craft')
-    parser.add_argument("--algo", help="which type of algorithm to use.", type=str, default='ppo')
-    parser.add_argument("--set_additional_goal", type=str, default="angle")
-    args = parser.parse_args()
+    with tf.device('/gpu:0'):
+        # ----- path setting ------
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--gym_env", help="which gym environment to use.", type=str, default='PlanarQuadEnv-v0')
+        parser.add_argument("--reward_type", help="which type of reward to use.", type=str, default='hand_craft')
+        parser.add_argument("--algo", help="which type of algorithm to use.", type=str, default='ppo')
+        parser.add_argument("--set_additional_goal", type=str, default="angle")
+        args = parser.parse_args()
+        args = vars(args)
 
-    RUN_DIR = MODEL_DIR = FIGURE_DIR = RESULT_DIR = None
-    if args.algo == "ppo":
-        RUN_DIR = os.path.join(os.getcwd(), 'runs_icra',
-                               args.gym_env + '_' + args.reward_type + '_' + args.algo + '_' + strftime(
-                                   '%d-%b-%Y_%H-%M-%S'))
-        MODEL_DIR = os.path.join(RUN_DIR, 'model')
-        FIGURE_DIR = os.path.join(RUN_DIR, 'figure')
-        RESULT_DIR = os.path.join(RUN_DIR, 'result')
-    elif args.algo == "dqn":
-        RUN_DIR = os.path.join(os.getcwd(), 'runs_icra',
-                               args.gym_env + '_' + args.reward_type + '_' + args.algo + '_' + strftime('%d-%b-%Y_%H-%M-%S'))
-        MODEL_DIR = os.path.join(RUN_DIR, 'model')
-    # ---------------------------
+        RUN_DIR = MODEL_DIR = FIGURE_DIR = RESULT_DIR = None
+        if args['algo'] == "ppo":
+            RUN_DIR = os.path.join(os.getcwd(), 'runs_icra',
+                                   args['gym_env'] + '_' + args['reward_type'] + '_' + args['algo'] + '_' + strftime(
+                                       '%d-%b-%Y_%H-%M-%S'))
+            MODEL_DIR = os.path.join(RUN_DIR, 'model')
+            FIGURE_DIR = os.path.join(RUN_DIR, 'figure')
+            RESULT_DIR = os.path.join(RUN_DIR, 'result')
+        elif args['algo'] == "dqn":
+            RUN_DIR = os.path.join(os.getcwd(), 'runs_icra',
+                                   args['gym_env'] + '_' + args['reward_type'] + '_' + args['algo'] + '_' + strftime('%d-%b-%Y_%H-%M-%S'))
+            MODEL_DIR = os.path.join(RUN_DIR, 'model')
 
-    # ------- logger initialize and configuration -------
-    logger.configure(dir=RUN_DIR)
-    # ---------------------------------------------------
+        args['RUN_DIR'] = RUN_DIR
+        args['MODEL_DIR'] = MODEL_DIR
+        args['FIGURE_DIR'] = FIGURE_DIR
+        args['RESULT_DIR'] = RESULT_DIR
+        # ---------------------------
 
-    # Initialize environment and reward type
-    env = gym.make(args.gym_env)
-    env.reward_type = args.reward_type
-    env.set_additional_goal = args.set_additional_goal
-    logger.record_tabular("algo", args.algo)
-    logger.record_tabular("env", args.gym_env)
-    logger.record_tabular("env.set_additional_goal", env.set_additional_goal)
-    logger.record_tabular("env.reward_type", env.reward_type)
+        # ------- logger initialize and configuration -------
+        logger.configure(dir=args['RUN_DIR'])
+        # ---------------------------------------------------
 
-    logger.dump_tabular()
+        # Initialize environment and reward type
+        env = gym.make(args['gym_env'])
+        env.reward_type = args['reward_type']
+        env.set_additional_goal = args['set_additional_goal']
+        logger.record_tabular("algo", args['algo'])
+        logger.record_tabular("env", args['gym_env'])
+        logger.record_tabular("env.set_additional_goal", env.set_additional_goal)
+        logger.record_tabular("env.reward_type", env.reward_type)
 
-    # Initialize brs engine. You also have to call reset_variables() after instance initialization
-    if args.reward_type == 'ttr':
+        logger.dump_tabular()
 
-        if args.gym_env == 'DubinsCarEnv-v0' or args.gym_env == 'DubinsCarEnv_dqn-v0':
-            brsEngine = DubinsCar_brs_engine()
-            brsEngine.reset_variables()
+        # Initialize brs engine. You also have to call reset_variables() after instance initialization
+        if args['reward_type'] == 'ttr':
 
-        elif args.gym_env == 'PlanarQuadEnv-v0' or args.gym_env == 'PlanarQuadEnv_dqn-v0':
-            brsEngine = Quadrotor_brs_engine()
-            brsEngine.reset_variables()
+            if args['gym_env'] == 'DubinsCarEnv-v0' or args['gym_env'] == 'DubinsCarEnv_dqn-v0':
+                brsEngine = DubinsCar_brs_engine()
+                brsEngine.reset_variables()
+
+            elif args['gym_env'] == 'PlanarQuadEnv-v0' or args['gym_env'] == 'PlanarQuadEnv_dqn-v0':
+                brsEngine = Quadrotor_brs_engine()
+                brsEngine.reset_variables()
+
+            else:
+                raise ValueError("invalid environment name for ttr reward!")
+
+            # You have to assign the engine
+            env.brsEngine = brsEngine
+
+        elif args['reward_type'] in ['hand_craft','distance','distance_lambda_10','distance_lambda_1','distance_lambda_0.1']:
+            pass
+        else:
+            raise ValueError("wrong type of reward")
+
+        if args['algo'] == "ppo":
+            # Make necessary directories
+            maybe_mkdir(args['RUN_DIR'])
+            maybe_mkdir(args['MODEL_DIR'])
+            maybe_mkdir(args['FIGURE_DIR'])
+            maybe_mkdir(args['RESULT_DIR'])
+            ppo_params_json = os.environ['PROJ_HOME']+'/ppo_params.json'
+
+            # Start to train the policy
+            trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, args=args)
+            trained_policy.save_model(args['MODEL_DIR'])
+            #
+            # LOAD_DIR = os.environ['PROJ_HOME'] + '/runs_icra/PlanarQuadEnv-v0_hand_craft_ppo_16-Aug-2019_11-37-22/model'
+            # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, load=True, loadpath=LOAD_DIR, loaditer=18)
+
+        elif args['algo'] == "dqn":
+            # Make necessary directories
+            maybe_mkdir(args['RUN_DIR'])
+            maybe_mkdir(args['MODEL_DIR'])
+            flag = train(env=env, algorithm=deepq)
+
 
         else:
-            raise ValueError("invalid environment name for ttr reward!")
-
-        # You have to assign the engine
-        env.brsEngine = brsEngine
-
-    elif args.reward_type in ['hand_craft','distance','distance_lambda_10','distance_lambda_1','distance_lambda_0.1']:
-        pass
-    else:
-        raise ValueError("wrong type of reward")
-
-    if args.algo == "ppo":
-        # Make necessary directories
-        maybe_mkdir(RUN_DIR)
-        maybe_mkdir(MODEL_DIR)
-        maybe_mkdir(FIGURE_DIR)
-        maybe_mkdir(RESULT_DIR)
-        ppo_params_json = os.environ['PROJ_HOME']+'/ppo_params.json'
-
-        # Start to train the policy
-        trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json)
-        trained_policy.save_model(MODEL_DIR)
-        #
-        # LOAD_DIR = os.environ['PROJ_HOME'] + '/runs_icra/PlanarQuadEnv-v0_hand_craft_ppo_16-Aug-2019_11-37-22/model'
-        # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, load=True, loadpath=LOAD_DIR, loaditer=18)
-
-    elif args.algo == "dqn":
-        # Make necessary directories
-        maybe_mkdir(RUN_DIR)
-        maybe_mkdir(MODEL_DIR)
-        flag = train(env=env, algorithm=deepq)
-
-
-    else:
-        raise ValueError("arg algorithm is invalid!")
+            raise ValueError("arg algorithm is invalid!")
 
 
 

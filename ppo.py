@@ -4,7 +4,8 @@ from collections import defaultdict
 from baselines.common import tf_util as U
 import numpy as np
 from collections import Counter
-
+import globals
+import pickle
 
 def create_session(num_cpu=None):
     U.make_session(num_cpu=num_cpu).__enter__()
@@ -94,8 +95,8 @@ def ppo_learn(env, policy,
         max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
         callback=None,  # you can do anything in the callback, since it takes locals(), globals()
         adam_epsilon=1e-5,
-        schedule='constant' # annealing for stepsize parameters (epsilon and adam)
-        ):
+        schedule='constant', # annealing for stepsize parameters (epsilon and adam)
+        save_obs=False):
     """This is a direct copy of https://github.com/openai/baselines/blob/master/baselines/ppo1/pposgd_simple.py
     The only reason I copied it here is to update the function to not create a new policy but instead update
     the current one for a few iterations.
@@ -197,6 +198,14 @@ def ppo_learn(env, policy,
 
         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+        if save_obs:
+            globals.g_iter_id += 1
+            tmp_seg = {}
+            tmp_seg["ob"] = seg["ob"]
+            tmp_seg["new"] = seg["new"]
+            with open(globals.g_hm_dirpath + '/iter_' + str(globals.g_iter_id) + '.pkl', 'wb') as f:
+                pickle.dump(tmp_seg, f)
+
 
         # added by xlv for computing success percentage
         sucs = seg["suc"]
