@@ -1,5 +1,6 @@
 # reward-shaping-ttr
-This repo focus on the research topic about reward shaping via optimal control theory
+This repo focus on the research topic about reward shaping via optimal control theory.
+[since this repo only contains code file, the code may not run properly without certain large data file which is not uploaded. Remember to check .gitignore]
 
 
 ## Basic Requirement

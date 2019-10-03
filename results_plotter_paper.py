@@ -1,7 +1,8 @@
 # use this file outside of conda env
 
 import pickle
-import seaborn as sns; sns.set()
+import seaborn as sns;
+sns.set()
 import matplotlib.pyplot as plt
 # plt.rcParams.update({'font.size': 30})
 import os,sys
@@ -62,11 +63,48 @@ if __name__ == "__main__":
     # fmri = sns.load_dataset("fmri")
     # print("fmri", fmri)
     ax = sns.lineplot(x="timesteps(*30k)", y="eval success percent", hue='reward_type', data=df, ci=None)
-    if args['title'] == "Quadrotor_PPO":
-        ax.axhline(y=0.940789, color='black', ls='--')
+
+    print(dir(ax))
+    L = ax.legend()
+
+    mylabels =[]
+    for l in L.get_texts():
+        if l._text != 'reward_type':
+            mylabels.append(l._text)
+
+    for idx in range(len(mylabels)):
+        if  mylabels[idx] == 'TTR':
+            mylabels[idx] = 'TTR(ours)'
+        elif  mylabels[idx] == 'SPARSE':
+            mylabels[idx] = 'Sparse'
+        elif  mylabels[idx] == 'DISTANCE':
+            mylabels[idx] ='Distance' + '(' + r'$\lambda=0$' + ')'
+        elif  mylabels[idx] == 'DISTANCE_LAMBDA_0.1':
+            mylabels[idx] = 'Distance' + '(' + r'$\lambda=0.1$' + ')'
+        elif  mylabels[idx] == 'DISTANCE_LAMBDA_1':
+            mylabels[idx] = 'Distance' + '(' + r'$\lambda=1.0$' + ')'
+        elif  mylabels[idx] == 'DISTANCE_LAMBDA_10':
+            mylabels[idx] = 'Distance' + '(' + r'$\lambda=10$' + ')'
+        else:
+            raise ValueError('no such legend name')
+    # print(mylabels)
+    # if args['title'] == "Quadrotor_PPO":
+    #     ax.axhline(y=0.940789, color='black', ls='--')
+
+    # b.axes.set_title("Title", fontsize=50)
+    # b.set_xlabel("X Label", fontsize=30)
+    # b.set_ylabel("Y Label", fontsize=20)
+
     ax.set_ylim(0,1.1)
-    ax.set_title(args['title'])
-    ax.legend(loc='lower right')
+    ax.set_title(args['title'].split('_')[0] + ' Task Using ' + args['title'].split('_')[1], fontsize=20)
+    ax.set_xlabel("timesteps(*30k)", fontsize=15)
+    ax.set_ylabel("Evaluation Success Rate", fontsize=15)
+    ax.legend(loc='lower right', title='Reward Type',labels=mylabels)
+
+    for idx in range(len(ax.lines)):
+        ax.lines[idx].set_linestyle("dashed")
+    ax.lines[0].set_linestyle('solid')
+    ax.lines[0].set_linewidth(2)
     ax.grid(True)
     # ax = sns.swarmplot(x="timesteps(*30k)", y="eval success percent", hue='reward_type', data=df)
     plt.show()

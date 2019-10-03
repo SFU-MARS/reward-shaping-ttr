@@ -71,10 +71,10 @@ def gen_plots(args, ranges):
                 # ax.hist2d(x, z, bins=min(bins[:2]))
 
                 # theta as 1d hist, xz as 2d hist
-                # axes[0, ranges.index(rg)].set(adjustable='box', aspect='equal')
-                # axes[0, ranges.index(rg)].hist(theta, bins=bins[2], density=True, facecolor='g', alpha=0.75, log=True)
-                # axes[1, ranges.index(rg)].set(adjustable='box', aspect='equal')
-                # axes[1, ranges.index(rg)].hist2d(x, z, range=[[-5,5],[0,10]], bins=min(bins[:2]), cmap='tab20')
+                axes[0, ranges.index(rg)].set(adjustable='box', aspect='equal')
+                axes[0, ranges.index(rg)].hist(theta, bins=bins[2], density=True, facecolor='g', alpha=0.75, log=True)
+                axes[1, ranges.index(rg)].set(adjustable='box', aspect='equal')
+                axes[1, ranges.index(rg)].hist2d(x, z, range=[[-5,5],[0,10]], bins=min(bins[:2]), cmap='tab20')
 
                 # x as 1d hist, z&theta as 2d hist
                 # axes[0, ranges.index(rg)].set(adjustable='box', aspect='equal')
@@ -83,11 +83,11 @@ def gen_plots(args, ranges):
                 # axes[1, ranges.index(rg)].hist2d(z,theta, range=[[0,10],[-np.pi,np.pi]], bins=min(bins[1:]), cmap='tab20')
 
                 # z as 1d hist, x&theta as 2d hist
-                axes[0, ranges.index(rg)].set(adjustable='box', aspect='equal')
-                axes[0, ranges.index(rg)].hist(z, bins=bins[1], density=True, facecolor='g', alpha=0.75, log=True)
-                axes[1, ranges.index(rg)].set(adjustable='box', aspect='equal')
-                axes[1, ranges.index(rg)].hist2d(x, theta, range=[[-5, 5], [-np.pi, np.pi]], bins=bins[0],
-                                                 cmap='tab20')
+                # axes[0, ranges.index(rg)].set(adjustable='box', aspect='equal')
+                # axes[0, ranges.index(rg)].hist(z, bins=bins[1], density=True, facecolor='g', alpha=0.75, log=True)
+                # axes[1, ranges.index(rg)].set(adjustable='box', aspect='equal')
+                # axes[1, ranges.index(rg)].hist2d(x, theta, range=[[-5, 5], [-np.pi, np.pi]], bins=bins[0],
+                #                                  cmap='tab20')
             elif args['gym_env'] == "DubinsCarEnv-v0":
                 xy = all_obs_cur_rg_concat[:, :2]
                 ax = fig.add_subplot(1,num_fig,1+ranges.index(rg))
@@ -106,7 +106,7 @@ def gen_plots(args, ranges):
     fig.tight_layout()
     plt.show()
 
-    plt.savefig(args['loadpath'] + '/test2_xtheta.png')
+    plt.savefig(args['loadpath'] + '/test3_xy.png')
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gym_env", help="which gym environment to use.", type=str, default='PlanarQuadEnv-v0')
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     args = vars(args)
 
     # gen_plots(args, [(1,20), (20,40), (40,60), (60,80), (80,100), (100,120)])
-    gen_plots(args, [(1,20), (20,40), (80,100)])
+    gen_plots(args, [(1,20), (20,40), (40,60)])
 
 
 

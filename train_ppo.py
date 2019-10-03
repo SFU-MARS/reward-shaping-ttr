@@ -106,15 +106,15 @@ def train(env, algorithm, args, params=None, load=False, loadpath=None, loaditer
             if suc_percent >= best_suc_percent:
                 best_suc_percent = suc_percent
                 pi.save_model(args['MODEL_DIR'], iteration='best')
-            if suc_percent > 0.6:
-                perf_flag = True
-            if not perf_flag or env.reward_type != 'ttr':
-                # less timesteps_per_actorbatch to make eval faster.
-                _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
-            else:
+            # if suc_percent > 0.6:
+            #     perf_flag = True
+            # if not perf_flag or env.reward_type != 'ttr':
+            #     # less timesteps_per_actorbatch to make eval faster.
+            #     _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
+            # else:
 
-                pi.load_model(args['MODEL_DIR'], iteration='best')
-                _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
+            pi.load_model(args['MODEL_DIR'], iteration='best')
+            _, _, eval_ep_mean_reward, eval_suc_percent, _, _ = algorithm.ppo_eval(env, pi, timesteps_per_actorbatch//2, max_iters=5, stochastic=False)
 
             eval_ppo_reward.extend(eval_ep_mean_reward)
             eval_suc_percents.append(eval_suc_percent)
@@ -383,11 +383,11 @@ if __name__ == "__main__":
             ppo_params_json = os.environ['PROJ_HOME']+'/ppo_params.json'
 
             # Start to train the policy
-            trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, args=args)
-            trained_policy.save_model(args['MODEL_DIR'])
+            # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, args=args)
+            # trained_policy.save_model(args['MODEL_DIR'])
             #
-            # LOAD_DIR = os.environ['PROJ_HOME'] + '/runs_icra/PlanarQuadEnv-v0_hand_craft_ppo_16-Aug-2019_11-37-22/model'
-            # trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, load=True, loadpath=LOAD_DIR, loaditer=18)
+            LOAD_DIR = os.environ['PROJ_HOME'] + '/runs_icra/DubinsCarEnv-v0_ttr_ppo_14-Sep-2019_02-45-25/model'
+            trained_policy = train(env=env, algorithm=ppo, params=ppo_params_json, args=args, load=True, loadpath=LOAD_DIR, loaditer=10)
 
         elif args['algo'] == "dqn":
             # Make necessary directories

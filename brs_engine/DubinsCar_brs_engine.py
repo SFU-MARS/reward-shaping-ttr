@@ -55,6 +55,7 @@ class DubinsCar_brs_engine(object):
         # # self.goal_vel_tolerance = 0.2  # How many m/s away can you be from the goal and still finish?
 
         self.goal_state = matlab.double([[GOAL_STATE[0]], [GOAL_STATE[1]], [GOAL_STATE[2]]])
+        # AMEND: remember to uncomment this. The goal_radius now used below is only for generating fancy paper plots.
         # self.goal_radius = matlab.double([[0.5],
         #                                   [0.5],
         #                                   [np.pi/3]])

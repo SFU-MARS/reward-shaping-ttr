@@ -278,11 +278,6 @@ def ppo_learn(env, policy,
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
 
-    # Taking avg of each start's rewards.
-    # for start in rewards_map:
-    #     rewards_map[start] = np.mean(rewards_map[start])
-    # return pi, rewards_map, ep_mean_lens, ep_mean_rews
-
     # AMEND: added by xlv for success percentage
     logger.record_tabular("success percentage", suc_counter * 1.0 / ep_counter)
     return pi, ep_mean_lens, ep_mean_rews, suc_counter * 1.0 / ep_counter

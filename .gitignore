@@ -1,1 +1,4 @@
 runs_icra/
+trajs_icra/
+heatmaps_icra/
+catkin_ws/

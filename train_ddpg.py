@@ -171,7 +171,7 @@ if __name__ == '__main__':
     args = parse_args()
     # print(args)
     if args['env_id'] == 'DubinsCarEnv-v0':
-        args['nb_epoch_cycles'] == 5
+        args['nb_epoch_cycles'] = 5
         args['nb_rollout_steps'] = 200
     print(args)
     # ---------------------- PATH SETTING ----------------------------

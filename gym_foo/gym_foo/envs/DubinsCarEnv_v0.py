@@ -97,19 +97,21 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
         return discretized_ranges
 
-    def _in_obst(self, laser_data):
+    # def _in_obst(self, laser_data):
+    #
+    #     min_range = 0.4
+    #     for idx, item in enumerate(laser_data.ranges):
+    #         if min_range > laser_data.ranges[idx] > 0:
+    #             return True
+    #     return False
 
-        min_range = 0.4
-        for idx, item in enumerate(laser_data.ranges):
-            if min_range > laser_data.ranges[idx] > 0:
+
+    # AMEND: also temporally for DDPG.
+    def _in_obst(self, contact_data):
+        if len(contact_data.states) != 0:
+            if contact_data.states[0].collision1_name != "" and contact_data.states[0].collision2_name != "":
                 return True
         return False
-    # def _in_obst(self, contact_data):
-    #     if len(contact_data.states) != 0:
-    #         if contact_data.states[0].collision1_name != "" and contact_data.states[0].collision2_name != "":
-    #             return True
-    #     else:
-    #             return False
 
     def _in_goal(self, state):
 
@@ -250,71 +252,25 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         if sum(np.isnan(action)) > 0:
             raise ValueError("Passed in nan to step! Action: " + str(action))
 
-        # linear_acc = action[0] + 1.0
-        # angular_acc = action[1]
-        #
-        # if sum(np.isnan(action)) > 0:
-        #     raise ValueError("Passed in nan to step! Action: " + str(action))
-        #
-        # pre_phi = self.pre_obsrv[2]
-        #
-        # cmd_vel = Twist()
-        # cmd_vel.linear.x = self.pre_obsrv[3] + linear_acc * np.cos(pre_phi)
-        # cmd_vel.angular.z = self.pre_obsrv[4] + angular_acc
-        # self.vel_pub.publish(cmd_vel)
-
-        # linear_acc = action[0]
-        # angular_acc = action[1]
-        #
-        # linear_vel = self.pre_obsrv[3] + linear_acc
-        # angular_vel = self.pre_obsrv[4] + angular_acc
-        #
-        # # clip angular velocity, from (-0.33 to + 0.33)
-        # max_ang_speed = 0.3
-        # angular_vel = (angular_vel-10)*max_ang_speed*0.1
-        #
-        # cmd_vel = Twist()
-        # cmd_vel.linear.x = linear_vel
-        # cmd_vel.angular.z = angular_vel
-        # self.vel_pub.publish(cmd_vel)
-
-        # print("linear_vel:", linear_vel)
-        # print("angular_vel:", angular_vel)
-
-        # max_linear_vel = 0.5
-        # linear_vel = (linear_vel - 10) * max_linear_vel * 0.1
-
-        # clip angular velocity, from (-1.0 to + 1.0)
-        # max_ang_vel = 0.3
-        # angular_vel = (angular_vel - 10) * max_ang_vel * 0.1
-
-        # if angular_vel > self.action_space.high[1]:
-        #     angular_vel = self.action_space.high[1]
-        #
-        # if angular_vel < self.action_space.low[1]:
-        #     angular_vel = self.action_space.low[1]
-
-        # cur_state = ModelState()
-        # cur_state.model_name = "dubins_car"
-        # cur_state.twist = cmd_vel
-        #
-        # cur_state.pose.position.x = 0
-        # cur_state.pose.position.y = 0
-        #
-        # cur_state.reference_frame = "dubins_car"
-        # self.set_model_states(cur_state)
-
-
-        # print("action:", action)
-        # action[0] + 0.3 if action[0] > 0 else action[0] - 0.3
-
-
         # [-2, 2] --> [-0.8, 2]
         linear_vel = -0.8 + (2 - (-0.8)) * (action[0] - (-2)) / (2 - (-2))
-        # [-2,2] --> [-0.8, 0.8]
-        # For ddpg, use this line below
+
+        # For ppo, do nothing to ang_vel
+        # angular_vel = action[1]
+
+        # For ddpg, [-2, 2] --> [-0.8, 0.8]
         # angular_vel = -0.8 + (0.8 - (-0.8)) * (action[1] - (-2)) / (2 - (-2))
-        angular_vel = action[1]
+
+        # For trpo, clip to [-1,1], then [-1,1] --> [-0.5,0.5]
+        # angular_vel = np.clip(action[1], -1, 1)
+        # angular_vel = -0.5 + (0.5 - (-0.5)) * (angular_vel - (-1)) / (1 - (-1))
+
+        angular_vel = np.clip(action[1], -1, 1)
+        angular_vel = -0.5 + (0.5 - (-0.5)) * (angular_vel - (-1)) / (1 - (-1))
+
+
+        # print("linear velocity:", linear_vel)
+        # print("angular velocity:", angular_vel)
 
         vel_cmd = Twist()
         vel_cmd.linear.x = linear_vel
@@ -326,20 +282,18 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
 
         laser_data = None
         dynamic_data = None
-        # contact_data = None
+        contact_data = None
         while laser_data is None and dynamic_data is None:
+            rospy.wait_for_service("/gazebo/get_model_state")
             try:
+
+                contact_data = rospy.wait_for_message('/gazebo_ros_bumper', ContactsState, timeout=50)
                 laser_data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
-                # dynamic_data = rospy.wait_for_message('/gazebo/model_states', ModelStates)
-                rospy.wait_for_service("/gazebo/get_model_state")
-                try:
-                    # contact_data = rospy.wait_for_message('/gazebo_ros_bumper', ContactsState, timeout=50)
-                    dynamic_data = self.get_model_states(model_name="mobile_base")
-                    # dynamic_data = self.get_model_states(model_name="dubins_car")
-                except rospy.ServiceException as e:
-                    print("/gazebo/unpause_physics service call failed")
-            except:
-                pass
+                # print("contact data:", contact_data)
+
+                dynamic_data = self.get_model_states(model_name="mobile_base")
+            except rospy.ServiceException as e:
+                print("/gazebo/get_model_state service call failed")
 
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -393,16 +347,16 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
         # print("step reward:", reward)
 
         # 1. when collision happens, done = True
-        if self._in_obst(laser_data):
-            reward += self.collision_reward
-            done = True
-            self.step_counter = 0
-
-        # temporary change for ddpg only. For PPO, use things above.
-        # if self._in_obst(contact_data):
+        # if self._in_obst(laser_data):
         #     reward += self.collision_reward
         #     done = True
         #     self.step_counter = 0
+
+        # temporary change for ddpg only. For PPO, use things above.
+        if self._in_obst(contact_data):
+            reward += self.collision_reward
+            done = True
+            self.step_counter = 0
 
         # 2. In the neighbor of goal state, done is True as well. Only considering velocity and pos
         if self._in_goal(np.array(obsrv[:5])):
@@ -416,14 +370,11 @@ class DubinsCarEnv_v0(gazebo_env.GazeboEnv):
             done = True
             self.step_counter = 0
 
-        if obsrv[4] > np.pi * 2:
+        if obsrv[4] > np.pi:
             done = True
             reward += self.collision_reward / 2
 
-        # 3. Maybe episode length limit is another factor for resetting the robot, stay tuned.
-        # waiting to be implemented
-        # ---
-        # print("reward:", reward)
+
         return np.asarray(obsrv), reward, done, suc, {}
 
     def _seed(self, seed=None):

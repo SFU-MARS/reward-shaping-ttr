@@ -11,7 +11,11 @@ BASEDIR=$(dirname "$0")
 #/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance_lambda_1 --set_additional_goal=angle
 #/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance_lambda_10 --set_additional_goal=angle
 
-/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --set_additional_goal=angle
+#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --set_additional_goal=angle
+
+
+
+
 #/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=hand_craft --set_additional_goal=angle
 #/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=distance --set_additional_goal=angle
 #/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=distance_lambda_0.1 --set_additional_goal=angle
@@ -79,18 +83,16 @@ BASEDIR=$(dirname "$0")
 # ---------------------------------------------------
 
 
+# some extra experiments
+#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --set_additional_goal=angle
+#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=DubinsCarEnv-v0 --reward_type=distance_lambda_1 --set_additional_goal=angle
+#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ppo.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --algo=ppo --set_additional_goal=angle
 
-
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --set_additional_goal=angle
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ddpg.py --env_id=PlanarQuadEnv-v0 --reward_type=ttr --set_additional_goal=angle
 #/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=ttr --algo=ppo --set_additional_goal=angle
+#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=distance_lambda_0.1 --algo=ppo --set_additional_goal=angle
+
+/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ppo.py --gym_env=DubinsCarEnv-v0 --reward_type=ttr --algo=ppo --set_additional_goal=angle
 
 
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/quick_trpo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --set_additional_goal=angle
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ddpg.py --env_id=PlanarQuadEnv-v0 --reward_type=hand_craft --set_additional_goal=angle
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_additional_goal=angle
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ddpg.py --env_id=PlanarQuadEnv-v0 --reward_type=hand_craft --set_additional_goal=angle
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_additional_goal=angle
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ddpg.py --env_id=PlanarQuadEnv-v0 --reward_type=hand_craft --set_additional_goal=angle
-#/local-scratch/xlv/miniconda3/envs/py35_no_specific/bin/python3.5 $BASEDIR/train_ppo.py --gym_env=PlanarQuadEnv-v0 --reward_type=hand_craft --algo=ppo --set_additional_goal=angle
+
 
